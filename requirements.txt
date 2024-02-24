@@ -1,6 +1,6 @@
 streamlit
 pandas
-pptx
-jira
+python-pptx
+jira-python
 numpy
-dateutil
+python-dateutil
