@@ -4,3 +4,4 @@ python-pptx
 jira
 numpy
 python-dateutil
+openpyxl
