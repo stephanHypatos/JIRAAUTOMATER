@@ -48,14 +48,15 @@ if st.button("Create Jira Project"):
         st.warning("Please provide Jira Project Key.")
     
     else: 
-        
-        excel_data_blue_print = read_excel(EXCEL_FILE_PATH_BLUE_PRINT)
-        create_issues_from_excel(jira, excel_data_blue_print,project_startdate)
-        # after succesful creation of the issues in JIRA the file JiraIssues.xls is updated
-        excel_data = read_excel(EXCEL_FILE_PATH)
-        issue_data = get_issues_from_jira(jira)
-        update_issue_overview_sheet(excel_data, issue_data)
-        st.success("Created issues in Jira.")
-
+        try:
+            excel_data_blue_print = read_excel(EXCEL_FILE_PATH_BLUE_PRINT)
+            create_issues_from_excel(jira, excel_data_blue_print,project_startdate)
+            # after succesful creation of the issues in JIRA the file JiraIssues.xls is updated
+            excel_data = read_excel(EXCEL_FILE_PATH)
+            issue_data = get_issues_from_jira(jira)
+            update_issue_overview_sheet(excel_data, issue_data)
+            st.success("Created issues in Jira.")
+        except Exception as e:
+            st.warning(f"Error Msg: {e}")
 
 
