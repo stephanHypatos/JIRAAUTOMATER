@@ -1,0 +1,6 @@
+streamlit
+pandas
+pptx
+jira
+office365
+dateutil
