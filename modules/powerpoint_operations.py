@@ -4,7 +4,6 @@ from pptx.enum.text import PP_ALIGN
 from jira import JIRA
 import pandas as pd
 from modules.utils import get_calendar_week,get_current_year,get_current_month
-#from modules.config import get_jira_project
 from modules.jira_operations import get_jira_project_key
 import streamlit as st
 import tempfile
@@ -31,7 +30,7 @@ def create_powerpoint(jira, jql):
     st.write(df)
     
     # Path to template and output PowerPoint files (Weekly Report)
-    template_path = f'/Users/stephankuche/CreateJiraIssues/templates/template_{get_jira_project_key()}.pptx' 
+    template_path = f'templates/template_{get_jira_project_key()}.pptx' 
     # Load PowerPoint template
     presentation = Presentation(template_path)
 
