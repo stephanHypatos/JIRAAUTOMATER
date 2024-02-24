@@ -1,6 +1,10 @@
 # PATH to excelfile on local FS
-EXCEL_FILE_PATH = '/Users/stephankuche/CreateJiraIssues/templates/jiraissues.xlsx'
-EXCEL_FILE_PATH_BLUE_PRINT = '/Users/stephankuche/CreateJiraIssues/templates/IssueBluePrint.xlsx'
+#EXCEL_FILE_PATH = '/Users/stephankuche/CreateJiraIssues/templates/jiraissues.xlsx'
+#EXCEL_FILE_PATH_BLUE_PRINT = '/Users/stephankuche/CreateJiraIssues/templates/IssueBluePrint.xlsx'
+
+# PATH to excelfile on server FS
+EXCEL_FILE_PATH_BLUE_PRINT = 'templates/jiraissues.xlsx'
+EXCEL_FILE_PATH = 'templates/IssueBluePrint.xlsx.xlsx'
 
 # Jira connection settings
 JIRA_URL = 'https://hypatos.atlassian.net/'
