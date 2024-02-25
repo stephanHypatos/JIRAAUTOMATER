@@ -15,7 +15,7 @@ if 'jira_project_key' not in st.session_state:
 
 st.set_page_config(page_title="Get Jira Projects", page_icon="🗂")
 
-st.title('List Jira Projects  sss')
+st.title('List Jira Projects')
 
 st.write('This table gives you an overview about all Jira project Keys and Names company-managed ')    
 
@@ -28,8 +28,10 @@ def get_company_managed_projects_df(jira_url, username, password):
     projects = jira.projects()
     
     # Filter and prepare the data for company-managed projects
-    data = [{'Key': project.key, 'Name': project.name} for project in projects if project.projectTypeKey == 'business']
-    
+
+    excluded_keys = {'OKR', 'FIPR', 'REQMAN', 'MBZ', 'T3S', 'SKK', 'PMO', 'TESTC', 'DUR', 'PS', 'PE'}
+    data = [{'Key': project.key, 'Name': project.name} for project in projects if project.projectTypeKey == 'business' and project.key not in excluded_keys]
+
     # Create a DataFrame from the filtered data
     df = pd.DataFrame(data)
     return df
