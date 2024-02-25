@@ -32,6 +32,20 @@ def get_jira_project_key():
     return st.session_state['jira_project_key']
 
 
+# Function to get all keys of company-managed projects in Jira
+def get_project_keys(jira_url, username, password):
+    # Connect to the JIRA server
+    jira = JIRA(jira_url, basic_auth=(username, password))
+    
+    # Retrieve all projects visible to the user
+    projects = jira.projects()
+    
+    # Extract and return the project keys
+    company_managed_project_keys = [project.key for project in projects if project.projectTypeKey == 'business']
+    select_options = [""]
+    select_options.extend(company_managed_project_keys)
+    return select_options
+
 def create_jira_issue(summary, issue_type, start_date=None, due_date=None, parent_key=None, description_key=None):
     issue_dict = {
         'project': {'key': get_jira_project_key()},

@@ -1,6 +1,6 @@
 import streamlit as st
 from jira import JIRA
-from modules.jira_operations import generate_jql, save_jira_project_key,save_jql,get_jira_project_key
+from modules.jira_operations import generate_jql, save_jira_project_key,save_jql,get_jira_project_key,get_project_keys
 from modules.config import JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL
 from modules.powerpoint_operations import create_powerpoint
 from modules.utils import get_calendar_week
@@ -34,8 +34,12 @@ with st.expander("Expand to read the instructions!"):
 
 
 with st.form("jql_form", clear_on_submit=False):
-    # Example selections - these could be dynamically generated based on your JIRA setup
-    project = st.selectbox("Select Project", ["", "FNK", "SKK", "KTM"], index=0)
+    # Get Project Keys from Jira
+    project_keys = get_project_keys(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
+    
+    # Select Project Key
+    project = st.selectbox("Select Project", project_keys, index=0)
+
     issue_type = st.selectbox("Select Issue Type", ["", JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE], index=0)
     status = st.selectbox("Select Status", ["", "Open", "In Progress", "Done"], index=0)
     parent = st.text_input("Parent Issue(s) (Want to input >1 issue? Use a comma i.e. 23,12,12)")

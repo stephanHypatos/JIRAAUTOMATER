@@ -1,7 +1,7 @@
 import streamlit as st
 from modules.jira_operations import save_credentials
 
-st.set_page_config(page_title="Authenticate", page_icon="📊")
+st.set_page_config(page_title="Authenticate", page_icon="🔐")
 
 st.sidebar.header("Authenticate")
 st.title("Authenticate 🤝")

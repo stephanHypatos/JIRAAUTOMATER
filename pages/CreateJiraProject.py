@@ -3,7 +3,7 @@ from jira import JIRA
 import pandas as pd
 
 from modules.excel_operations import read_excel
-from modules.jira_operations import create_jira_issue,get_issue_key,add_issue_links,create_issues_from_excel,get_issues_from_jira,update_issue_overview_sheet,update_jira_issues,has_cf,compute_dates,get_issues_from_jira_to_update,get_issues_from_jira_v2,update_dates_for_blocked_issues,get_jira_project_key,save_jira_project_key,save_credentials,save_jql
+from modules.jira_operations import create_jira_issue,get_issue_key,add_issue_links,create_issues_from_excel,get_issues_from_jira,update_issue_overview_sheet,update_jira_issues,has_cf,compute_dates,get_issues_from_jira_to_update,get_issues_from_jira_v2,update_dates_for_blocked_issues,get_jira_project_key,save_jira_project_key,save_credentials,save_jql,get_project_keys
 from modules.config import EXCEL_FILE_PATH_BLUE_PRINT,EXCEL_FILE_PATH,JIRA_URL
 
 # Initialize session state for JIRA API credentials if not already done
@@ -21,17 +21,24 @@ st.title('Create Jira Project :construction_worker:')
 preparationTime = None
 #project_startdate = pd.to_datetime('2024-01-01')  
 
-with st.expander("Upload a project BLUE PRINT (not yet available)"):
+with st.expander("Upload a project BLUE PRINT FILE (not yet available)"):
     # Allow user to upload an Excel file
     uploaded_file = None #st.file_uploader("Upload an BLUE PRINT excel file", type=["xls", "xlsx"])
 
-project = st.selectbox("Select Project", ["", "FNK", "SKK", "KTM","WHL"], index=0)
+# Get Project Keys from Jira
+project_keys = get_project_keys(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
+
+# Select Project Key
+project = st.selectbox("Select Project", project_keys, index=0)
+#project = st.selectbox("Select Project", ["", "FNK", "SKK", "KTM","WHL"], index=0)
+
 project_startdate_raw = st.text_input('Project Startdate','2024-01-01')
 project_startdate = pd.to_datetime(project_startdate_raw)
 save_jira_project_key(project)
 
 st.write('Your project starts at: ', project_startdate)
-st.write(st.session_state['jira_project_key'])
+if st.session_state["jira_project_key"]:
+    st.write(f'Jira Project will be created on the Jira Work Management Board: {st.session_state["jira_project_key"]}')
 
 if st.button("Create Jira Project"):
     
