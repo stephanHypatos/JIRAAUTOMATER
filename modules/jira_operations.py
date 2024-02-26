@@ -77,32 +77,6 @@ def get_issue_key(jira, summary):
     issues = jira.search_issues(f'project={get_jira_project_key()} AND summary~"{summary}"', maxResults=1)
     return issues[0].key if issues else None
 
-# first version of add_issue_links - can be deleted
-##### DELETE 
-def add_issue_links_v1(jira, excel_data):
-    for index, row in excel_data.iterrows():
-        issue_type = row['IssueType']
-        link1_key = row.get('SummaryName')
-        link2_key = row.get('Blocks')
-
-        
-        #link1_key = row.get('blocks')
-        #link2_key = row.get('isBlockedBy')
-
-        # Add issue links if link1 is provided
-        if link1_key and link2_key:
-            # Get the key of the issue by searching with the issuesummary
-            link1_key_normalized = get_issue_key(jira, link1_key)
-            link2_key_normalized = get_issue_key(jira, link2_key)
-            if link1_key_normalized:
-                jira.create_issue_link(
-                    type= "blocks",
-                    inwardIssue= link1_key_normalized,
-                    outwardIssue=link2_key_normalized 
-                )
-            else:
-                st.write(f"Link1 issue '{link1_key}' not found. Skipping link creation.")
-
 # updated version 
 def add_issue_links(jira, excel_data):
     for index, row in excel_data.iterrows():
@@ -550,7 +524,7 @@ def compute_dates(excel_data, project_startdate):
                     'end_date': existing_task['end_date']
                 })
     
-    # Fourth Iteration: compute start and enddates for Sub-tasks
+    # Fourth Iteration: compute start and enddates for Epics
     for index, row in excel_data.iterrows():
         summary = row['Summary']
         issue_type = row['IssueType']
