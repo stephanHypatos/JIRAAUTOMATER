@@ -5,8 +5,9 @@ import math
 from datetime import datetime
 from pptx import Presentation
 from pptx.util import Inches
-from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL,EXCEL_FILE_PATH#,JIRA_PROJECT
+from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL,EXCEL_FILE_PATH,EXCEL_FILE_PATH_BLUE_PRINT_PILOT,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT,EXCEL_FILE_PATH_BLUE_PRINT_POC,EXCEL_FILE_PATH_BLUE_PRINT_TEST#,JIRA_PROJECT,
 from modules.utils import normalize_NaN, normalize_date, calculate_end_date
+
 
 # JIRA Credentials Handling
 
@@ -19,9 +20,16 @@ def save_credentials(username, password):
     else:
         st.warning('Provide Jira Credentials')
 
+
+# JIRA Project relelated Functions
+        
 # Function to store jira project key in session state
 def save_jira_project_key(projektkey):
     st.session_state['jira_project_key'] = projektkey
+
+# Function to store jira project type in session state ( ROLLOUT, POC, PILOT)
+def save_jira_project_type(projecttype): 
+    st.session_state['jira_project_type'] = projecttype
 
 # Function to store JQL in session state
 def save_jql(jql):
@@ -31,6 +39,24 @@ def save_jql(jql):
 def get_jira_project_key():
     return st.session_state['jira_project_key']
 
+
+
+# Function to store the selected Account Parent Issue in session state
+def save_jira_account_type_parent(parent):
+    st.session_state['jira_issue_type_account'] = parent
+
+# Function retunrns a GLOBAL FILEPATH to Blueprintfile
+def get_blue_print_filepath(sessionStateProjectType):
+    filepath=None
+    if sessionStateProjectType == 'POC':
+        filepath=EXCEL_FILE_PATH_BLUE_PRINT_POC
+    if sessionStateProjectType == 'PILOT':
+        filepath=EXCEL_FILE_PATH_BLUE_PRINT_PILOT
+    if sessionStateProjectType == 'ROLLOUT':
+        filepath=EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT
+    if sessionStateProjectType == 'TEST':
+        filepath=EXCEL_FILE_PATH_BLUE_PRINT_TEST
+    return filepath
 
 # Function to get all keys of company-managed projects in Jira
 def get_project_keys(jira_url, username, password):
@@ -45,6 +71,18 @@ def get_project_keys(jira_url, username, password):
     select_options = [""]
     select_options.extend(company_managed_project_keys)
     return select_options
+
+# Function returns a list of JIRA ISSUES ON a JWM Board of type= Account
+def get_jira_issue_type_account_key(jira_url, username, password):
+    jira =  JIRA(jira_url, basic_auth=(username, password))
+    project_key = get_jira_project_key()
+    query = f'project="{project_key}" AND issuetype="Account"'
+    parent_issue_keys = jira.search_issues(query, maxResults=10)
+    parent_keys= [project.key for project in parent_issue_keys]
+    select_options = ["No_Parent"]
+    select_options.extend(parent_keys)
+    return select_options
+
 
 def create_jira_issue(summary, issue_type, start_date=None, due_date=None, parent_key=None, description_key=None):
     issue_dict = {
@@ -77,7 +115,7 @@ def get_issue_key(jira, summary):
     issues = jira.search_issues(f'project={get_jira_project_key()} AND summary~"{summary}"', maxResults=1)
     return issues[0].key if issues else None
 
-# updated version 
+# Add Links between Issues Blocking and Blocked
 def add_issue_links(jira, excel_data):
     for index, row in excel_data.iterrows():
         issue_type = row['IssueType']
@@ -154,10 +192,17 @@ def create_issues_from_excel(jira, excel_data,project_startdate):
                 else:
                     st.write(f"Parent issue '{parent_key}' not found. Skipping task creation.")
             else:
-                # Create task on its own
-                issue_dict = create_jira_issue(summary, JIRA_PROJECT_ISSUE_TYPE, start_date, due_date, description_key=description)
-                project_issue = jira.create_issue(fields=issue_dict)
-                st.write(f"Created Jira Issue Type Project: {project_issue.key} - Summary: {project_issue.fields.summary}")
+                # Check if an Account Issue as parent was selected 
+                if st.session_state['jira_issue_type_account'] and st.session_state['jira_issue_type_account'] != "No_Parent":
+                    parent_key = st.session_state['jira_issue_type_account']
+                    issue_dict = create_jira_issue(summary, JIRA_PROJECT_ISSUE_TYPE, start_date, due_date, parent_key,description)
+                    project_issue = jira.create_issue(fields=issue_dict)
+                    st.write(f"Created Jira Issue Type Project: {project_issue.key} - Summary: {project_issue.fields.summary}, Linked to parent: {parent_key}")
+                else: 
+                    # Create task on its own without adding an Issue Type "Account" to the Issue
+                    issue_dict = create_jira_issue(summary, JIRA_PROJECT_ISSUE_TYPE, start_date, due_date, description_key=description)
+                    project_issue = jira.create_issue(fields=issue_dict)
+                    st.write(f"Created Jira Issue Type Project: {project_issue.key} - Summary: {project_issue.fields.summary}")
 
         elif issue_type == JIRA_EPIC_ISSUE_TYPE:
             # Check if the issue has a parent issue 
@@ -178,18 +223,7 @@ def create_issues_from_excel(jira, excel_data,project_startdate):
                 issue_dict = create_jira_issue(summary, JIRA_EPIC_ISSUE_TYPE, start_date_normalized, due_date_normalized, description_key=description)
                 epic_issue = jira.create_issue(fields=issue_dict)
                 st.write(f"Created Jira Issue Type Epic: {epic_issue.key} - Summary: {epic_issue.fields.summary}")
-
-
         
-        ###### NEW END
-#        if issue_type == JIRA_EPIC_ISSUE_TYPE:
-#            # Create only the epic issue
-#            if parent_key is not None:
-#                print("An Epic can't have a parent. Skipping Epic creation.")
-#            else:
-#                issue_dict = create_jira_issue(summary, JIRA_EPIC_ISSUE_TYPE, start_date_normalized, due_date_normalized, description_key=description)
-#                epic_issue = jira.create_issue(fields=issue_dict)
-#                print(f"Created Jira epic: {epic_issue.key} - Summary: {epic_issue.fields.summary}")
 
         elif issue_type == JIRA_TASK_ISSUE_TYPE:
             # Check if the task has a parent issue
@@ -411,7 +445,7 @@ def has_cf(jira):
         st.write(f"Error retrieving custom fields: {e}")
         return False
 
-# function that computes start and enddates of subtasks and epics based on start and enddate of Issue Type Task
+# Function that computes start and enddates of subtasks and epics based on start and enddate of Issue Type Task
 def compute_dates(excel_data, project_startdate):
     task_info = []
     # First Iteration: compute start and enddates for Tasks
@@ -474,21 +508,7 @@ def compute_dates(excel_data, project_startdate):
                     'end_date': calculate_end_date(project_startdate, duration)
                 })
                 
-                # If there is a value in "Blocks," create a new task in task_info
-                #    if blocks:
-                #        task_info.append({
-                #        'summary': blocks,
-                #        'parent': row['Parent'],
-                #        'start_date': calculate_end_date(project_startdate, duration),  # Use end date as start date
-                #        })
-                
-                # If there is a value in "Blocks," create new tasks in task_info
                 if blocks:
-                    #st.write(block_summary)
-                    #summaryDependentTask = block_summary.strip()
-                    #Blocks_from_Dependent = excel_data.loc[excel_data['Summary'] == summaryDependentTask, 'Blocks'].iloc[0]
-                    #st.write(Blocks_from_Dependent)
-
 
                     for block_summary in blocks.split(','):
                         task_info.append({
@@ -567,6 +587,52 @@ def getIssueDate(dates,summary,date_type='start_date'):
     return issue_date_string
 
 
+# Generate a JQL string based on the selected project, issue type, and status etc
+def generate_jql(project, issue_type, status,parent,days,custom_jql):
+    jql_parts = []
+    if project:
+        jql_parts.append(f'project = "{project}"')
+    else:
+        st.write('Please select a project key!')
+        return
+    if issue_type:
+        jql_parts.append(f'issuetype = "{issue_type}"')
+    if status:
+        jql_parts.append(f'status = "{status}"')
+    if parent:
+        if ',' in parent:
+            # assume more then one issue was input
+            parents = parent.split(",")
+            # Initialize an empty string to hold the final result
+            result_string = ""
+            # Iterate over each element in the list
+            for i, element in enumerate(parents):
+                # Add "FNK-" prefix to each element and " or " suffix if it's not the last element
+                if i < len(parents) - 1:
+                    result_string += "parent = FNK-" + element + " or "
+                else:
+                    # If it's the last element, don't add the " or " suffix
+                    result_string += "parent = FNK-" + element 
+
+            jql_parts.append(f'("{result_string}")')
+        else:
+        # only one issue
+            jql_parts.append(f'parent = "{project}-{parent}"')
+    if days:
+        jql_parts.append(f'due >= startOfDay() AND due <= endOfDay("+{days}d")')
+    if custom_jql:
+        jql_parts.append(f'{custom_jql}')
+
+    return " AND ".join(jql_parts)
+
+
+
+
+##################################################################################################
+#################################### THIS PART WILL BE USED FOR THE NEXT RELEASE #################
+#################################### IMPORTANT WHEN WORKING WITH EXCEL AS THE MAIN PM TOOL #######
+##################################################################################################
+
 # This Sections updates EndDates dependent Tasks if an EndDate (Due_date) of an Issue changed (Sub-tasks and Epcis are updated accordingly)
 
 def get_issues_from_jira_to_update(jira):
@@ -622,9 +688,8 @@ def get_issues_from_jira_to_update(jira):
                 issue_data.append(issue_info)
 
     return pd.DataFrame(issue_data)
+# LEGACY: Function that gets all issues from a given Jira Project - Currently this is handled by get_issues_from_jira
 
-
-# Function that gets all issues from a given Jira Project
 def get_issues_from_jira_v2(jira):
     # Query issues from Jira
     issues = jira.search_issues(f'project={get_jira_project_key()}', maxResults=None)
@@ -702,57 +767,3 @@ def update_dates_for_blocked_issues(issue_data):
                         st.write(blocking_issue['DueDate'])
 
     return issue_data
-
-
-#def update_dates_in_jira(jira, updated_task_df):
-    #  code to update the start_date and due_date (or end_date) in Jira
- #   pass
-
-
-#def update_child_subtasks(jira, parent_key, start_date, end_date):
-    #  code to get and update child sub-tasks in Jira
- #   pass
-#
-#def update_parent_epics(jira, task_df):
-    #  code to update parent epics in Jira
- #   pass
-
-
-
-# Generate a JQL string based on the selected project, issue type, and status etc
-def generate_jql(project, issue_type, status,parent,days,custom_jql):
-    jql_parts = []
-    if project:
-        jql_parts.append(f'project = "{project}"')
-    else:
-        st.write('Please select a project key!')
-        return
-    if issue_type:
-        jql_parts.append(f'issuetype = "{issue_type}"')
-    if status:
-        jql_parts.append(f'status = "{status}"')
-    if parent:
-        if ',' in parent:
-            # assume more then one issue was input
-            parents = parent.split(",")
-            # Initialize an empty string to hold the final result
-            result_string = ""
-            # Iterate over each element in the list
-            for i, element in enumerate(parents):
-                # Add "FNK-" prefix to each element and " or " suffix if it's not the last element
-                if i < len(parents) - 1:
-                    result_string += "parent = FNK-" + element + " or "
-                else:
-                    # If it's the last element, don't add the " or " suffix
-                    result_string += "parent = FNK-" + element 
-
-            jql_parts.append(f'("{result_string}")')
-        else:
-        # only one issue
-            jql_parts.append(f'parent = "{project}-{parent}"')
-    if days:
-        jql_parts.append(f'due >= startOfDay() AND due <= endOfDay("+{days}d")')
-    if custom_jql:
-        jql_parts.append(f'{custom_jql}')
-
-    return " AND ".join(jql_parts)

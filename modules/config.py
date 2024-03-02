@@ -5,6 +5,7 @@ EXCEL_FILE_PATH_BLUE_PRINT = 'templates/IssueBluePrint.xlsx'
 EXCEL_FILE_PATH_BLUE_PRINT_PILOT = 'templates/IssueBluePrintPilot.xlsx'
 EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT = 'templates/IssueBluePrintRollout.xlsx'
 EXCEL_FILE_PATH_BLUE_PRINT_POC = 'templates/IssueBluePrintPoc.xlsx'
+EXCEL_FILE_PATH_BLUE_PRINT_TEST = 'templates/IssueBluePrintTest.xlsx'
 
 # Jira connection settings
 JIRA_URL = 'https://hypatos.atlassian.net/'
