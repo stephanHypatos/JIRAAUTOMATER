@@ -34,6 +34,7 @@ with st.expander('Key functionalities of the current version'):
 
         ### Upcoming features
                     
+        - Update the Timeline ( GANTT CHART THINK CELL ) if changes are made to the dates
         - Sharepoint Connection in order to make downloading and uploading of slidedecks unnecessary
         - Update the projectplan in the app
         - Issue Updates: Updating existing Jira issues based on changes in an Excel file (including changes to summary, status, start date, due date, and description)
