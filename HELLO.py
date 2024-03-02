@@ -14,7 +14,7 @@ st.markdown(
     Meet *Hypa PMO*: The HY app engineered to supercharge your project management workflow! 
     Wave goodbye to the drudgery of repetitive tasks, from launching new projects to generating those weekly status updates. 
     Hypa PMO is here to automate the tedious, freeing you to tackle the bigger picture.
-    [Want to learn more?] (https://hypatos.atlassian.net/wiki/spaces/PD/pages/1115947248/Project+Management+-+HYPA+PMO)
+    [Want to learn more?](https://hypatos.atlassian.net/wiki/spaces/PD/pages/1115947248/Project+Management+-+HYPA+PMO)
     """
 )   
 with st.expander('Key functionalities of the current version'):
