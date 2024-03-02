@@ -34,6 +34,8 @@ with st.expander('Key functionalities of the current version'):
 
         ### Upcoming features
                     
+        - Sharepoint Connection in order to make downloading and uploading of slidedecks unnecessary
+        - Update the projectplan in the app
         - Issue Updates: Updating existing Jira issues based on changes in an Excel file (including changes to summary, status, start date, due date, and description)
         - Transition Handling: Manages transitions between different statuses of Jira issues.
         """

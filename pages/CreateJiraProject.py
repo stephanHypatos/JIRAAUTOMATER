@@ -32,7 +32,7 @@ project_keys = get_project_keys(JIRA_URL, st.session_state['api_username'], st.s
 # Select Project Key
 project = st.selectbox("Select Jira Project", project_keys, index=0)
 with st.expander('Expand for more info on how to find the Jira Project Key'):
-    st.write('You can find the key of your jira board either in the URL: ...jira/core/projects/<KEY>/ or in the project settings.')
+    st.write('You can find the key of your jira board by clicking on GetProjects on the left.')
 save_jira_project_key(project)
 
 # Select and Save Project Type
