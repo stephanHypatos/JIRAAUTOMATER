@@ -40,6 +40,7 @@ st.write('Your project starts at: ', project_startdate)
 if st.session_state["jira_project_key"]:
     st.write(f'Jira Project will be created on the Jira Work Management Board: {st.session_state["jira_project_key"]}')
 
+
 if st.button("Create Jira Project"):
     
     if st.session_state['api_username'] and st.session_state['api_password']:
@@ -48,7 +49,7 @@ if st.button("Create Jira Project"):
         st.warning("Please provide Jira credentials.")
 
     if uploaded_file:
-       pass
+        pass
         #excel_data_blue_print = read_excel(uploaded_file)
     
     if not st.session_state['jira_project_key']:
@@ -65,5 +66,3 @@ if st.button("Create Jira Project"):
             st.success("Created issues in Jira.")
         except Exception as e:
             st.warning(f"Error Msg: {e}")
-
-

@@ -160,7 +160,7 @@ def create_issues_from_excel(jira, excel_data,project_startdate):
                 st.write(f"Created Jira Issue Type Project: {project_issue.key} - Summary: {project_issue.fields.summary}")
 
         elif issue_type == JIRA_EPIC_ISSUE_TYPE:
-            # Check if the issue has a parent issue
+            # Check if the issue has a parent issue 
             if parent_key is not None:
                 # Find parent issue using summary
                 parent_issue = jira.search_issues(f'project={get_jira_project_key()} AND summary~"{parent_key}"', maxResults=1)
@@ -169,7 +169,7 @@ def create_issues_from_excel(jira, excel_data,project_startdate):
                     parent_key = parent_issue[0].key
                     issue_dict = create_jira_issue(summary, JIRA_EPIC_ISSUE_TYPE, start_date_normalized, due_date_normalized, parent_key,description)
                     epic_issue = jira.create_issue(fields=issue_dict)
-                    st.write(f"Created Jira Issue Type Epic: {project_issue.key} - Summary: {epic_issue.fields.summary}, Linked to parent: {parent_key}")
+                    st.write(f"Created Jira Issue Type Epic: {epic_issue.key} - Summary: {epic_issue.fields.summary}, Linked to parent: {parent_key}")
 
                 else:
                     st.write(f"Parent issue '{parent_key}' not found. Skipping task creation.")
