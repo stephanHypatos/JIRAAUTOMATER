@@ -16,7 +16,7 @@ if 'jira_project_key' not in st.session_state:
 
 st.set_page_config(page_title="Create Report", page_icon="📊")
 
-st.title('Create Report')
+st.title('Create Report :file_folder:')
 with st.expander("Expand to read the instructions!"):
     st.markdown(
         """

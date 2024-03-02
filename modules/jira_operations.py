@@ -67,7 +67,8 @@ def get_project_keys(jira_url, username, password):
     projects = jira.projects()
     
     # Extract and return the project keys
-    company_managed_project_keys = [project.key for project in projects if project.projectTypeKey == 'business']
+    excluded_keys = {'BXIMH','DFM','SE','ROP','OKR', 'FIPR', 'REQMAN', 'MBZ', 'T3S', 'SKK', 'PMO', 'TESTC', 'DUR', 'PS', 'PE', 'TESTB', 'KATE', 'MDG', 'TESTA', 'UGI', 'TESTD', 'TOH', 'MON','DBFM'}
+    company_managed_project_keys = [project.key for project in projects if project.projectTypeKey == 'business' and project.key not in excluded_keys]
     select_options = [""]
     select_options.extend(company_managed_project_keys)
     return select_options
