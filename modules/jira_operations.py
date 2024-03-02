@@ -625,7 +625,21 @@ def generate_jql(project, issue_type, status,parent,days,custom_jql):
 
     return " AND ".join(jql_parts)
 
+# Function Returns a list of Jira Projects and theirKeys
+def get_company_managed_projects_df(jira_url, username, password):
+    # Connect to the JIRA server
+    jira = JIRA(jira_url, basic_auth=(username, password))
+    
+    # Retrieve all projects visible to the user
+    projects = jira.projects()
+    
+    # Filter and prepare the data for company-managed projects
+    excluded_keys = {'BXIMH','DFM','SE','ROP','OKR', 'FIPR', 'REQMAN', 'MBZ', 'T3S', 'SKK', 'PMO', 'TESTC', 'DUR', 'PS', 'PE', 'TESTB', 'KATE', 'MDG', 'TESTA', 'UGI', 'TESTD', 'TOH', 'MON','DBFM'}
+    data = [{'Key': project.key, 'Name': project.name} for project in projects if project.projectTypeKey == 'business' and project.key not in excluded_keys]
 
+    # Create a DataFrame from the filtered data
+    df = pd.DataFrame(data)
+    return df
 
 
 ##################################################################################################

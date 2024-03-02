@@ -18,7 +18,7 @@ if 'jira_project_type' not in st.session_state:
 if 'jira_issue_type_account' not in st.session_state:
     st.session_state['jira_issue_type_account'] = ''
 
-st.set_page_config(page_title="Create Jira Project", page_icon="📊")
+st.set_page_config(page_title="Create Jira Project", page_icon="🏗️")
 st.title('Create Jira Project :construction_worker:')
 
 preparationTime = None
