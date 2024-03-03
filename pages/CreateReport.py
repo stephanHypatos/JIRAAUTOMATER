@@ -40,7 +40,6 @@ with st.form("jql_form", clear_on_submit=False):
     # Select Project Key
     project = st.selectbox("Select Jira Board", project_keys, index=0)
     issue_type = st.multiselect("Select Issue Type", [JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_ACCOUNT_ISSUE_TYPE])
-    #status = st.selectbox("Select Status", ["", "Open", "In Progress", "Done"], index=0)
     status = st.multiselect("Select Status", ["Open", "In Progress", "Done","To Do","Waiting for Input"],['To Do', 'In Progress'])
     parent = st.text_input("Parent Issue(s) (Want to input >1 issue? Only use the number and a comma  to separate: 23,12,12)")
     days = st.slider('Select days to due', 0, 30)
@@ -53,7 +52,7 @@ with st.form("jql_form", clear_on_submit=False):
     submitted = st.form_submit_button("Generate JQL")
 
 if submitted and (project or issue_type or status or parent or manual_jql):
-    jql_query = generate_jql(project, issue_type, status,parent,days,manual_jql)
+    jql_query = generate_jql(project, issue_type,status,parent,days,manual_jql)
     save_jira_project_key(project)
     save_jql(jql_query)
     st.code(jql_query, language='sql')
@@ -70,7 +69,7 @@ if st.button("Create Status Report"):
     # Create a download button in the Streamlit app
     with open(presentation_path, "rb") as f:
         st.download_button(
-            label="Download PowerPoint presentation",
+            label="Download PowerPoint Status Report",
             data=f,
             #file_name="presentation.pptx",
             file_name=f'{get_jira_project_key()}_Weekly_Status_Report_CW_{get_calendar_week()}.pptx',
