@@ -1,9 +1,13 @@
 import streamlit as st
 from jira import JIRA
 from modules.jira_operations import generate_jql, save_jira_project_key,save_jql,get_jira_project_key,get_project_keys
-from modules.config import JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL
+from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL
 from modules.powerpoint_operations import create_powerpoint
 from modules.utils import get_calendar_week
+    
+st.set_page_config(page_title="Create Report", page_icon="📊")
+st.title('Create Report :file_folder:')
+
 
 # Initialize session state for JIRA API credentials if not already done
 if 'api_username' not in st.session_state:
@@ -13,10 +17,6 @@ if 'api_password' not in st.session_state:
 if 'jira_project_key' not in st.session_state:
     st.session_state['jira_project_key'] = ''
 
-
-st.set_page_config(page_title="Create Report", page_icon="📊")
-
-st.title('Create Report :file_folder:')
 with st.expander("Expand to read the instructions!"):
     st.markdown(
         """
@@ -38,16 +38,16 @@ with st.form("jql_form", clear_on_submit=False):
     project_keys = get_project_keys(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
     
     # Select Project Key
-    project = st.selectbox("Select Project", project_keys, index=0)
-
-    issue_type = st.selectbox("Select Issue Type", ["", JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE], index=0)
-    status = st.selectbox("Select Status", ["", "Open", "In Progress", "Done"], index=0)
-    parent = st.text_input("Parent Issue(s) (Want to input >1 issue? Use a comma i.e. 23,12,12)")
+    project = st.selectbox("Select Jira Board", project_keys, index=0)
+    issue_type = st.multiselect("Select Issue Type", [JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_ACCOUNT_ISSUE_TYPE])
+    #status = st.selectbox("Select Status", ["", "Open", "In Progress", "Done"], index=0)
+    status = st.multiselect("Select Status", ["Open", "In Progress", "Done","To Do","Waiting for Input"],['To Do', 'In Progress'])
+    parent = st.text_input("Parent Issue(s) (Want to input >1 issue? Only use the number and a comma  to separate: 23,12,12)")
     days = st.slider('Select days to due', 0, 30)
-    st.markdown('Or Input Your Custom JQL.')
+    st.markdown('Or just input your custom JQL.')
     manual_jql = st.text_input('Custom JQL ( Project must selected in the dropdown)')
     
-    with st.expander('Additional JQLs'):
+    with st.expander('Need some Examples?'):
         st.write('issuetype = "Task" AND due >= startOfDay() AND due <= endOfDay("+21d") || issueType = sub-task AND (parent = "FNK-2464" OR parent = "FNK-2436" OR parent = "FNK-2450")')
     # Form submission button
     submitted = st.form_submit_button("Generate JQL")

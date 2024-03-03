@@ -6,6 +6,9 @@ from modules.excel_operations import read_excel
 from modules.jira_operations import create_jira_issue,get_issue_key,add_issue_links,create_issues_from_excel,get_issues_from_jira,update_issue_overview_sheet,update_jira_issues,has_cf,compute_dates,get_issues_from_jira_to_update,get_issues_from_jira_v2,update_dates_for_blocked_issues,get_jira_project_key,save_jira_project_key,save_credentials,save_jql,get_project_keys,save_jira_project_type,get_blue_print_filepath,get_jira_issue_type_account_key,save_jira_account_type_parent
 from modules.config import EXCEL_FILE_PATH,JIRA_URL
 
+st.set_page_config(page_title="Create Jira Project", page_icon="🏗️")
+st.title('Create Jira Project :construction_worker:')
+
 # Initialize session state for JIRA API credentials if not already done
 if 'api_username' not in st.session_state:
     st.session_state['api_username'] = ''
@@ -18,9 +21,6 @@ if 'jira_project_type' not in st.session_state:
 if 'jira_issue_type_account' not in st.session_state:
     st.session_state['jira_issue_type_account'] = ''
 
-st.set_page_config(page_title="Create Jira Project", page_icon="🏗️")
-st.title('Create Jira Project :construction_worker:')
-
 preparationTime = None
 
 with st.expander("Upload a project BLUE PRINT FILE (not yet available)"):
@@ -30,7 +30,7 @@ with st.expander("Upload a project BLUE PRINT FILE (not yet available)"):
 # Get Project Keys from Jira
 project_keys = get_project_keys(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
 # Select Project Key
-project = st.selectbox("Select Jira Project", project_keys, index=0)
+project = st.selectbox("Select Jira Board", project_keys, index=0)
 with st.expander('Expand for more info on how to find the Jira Project Key'):
     st.write('You can find the key of your jira board by clicking on GetProjects on the left.')
 save_jira_project_key(project)

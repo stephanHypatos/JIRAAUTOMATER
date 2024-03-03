@@ -597,25 +597,29 @@ def generate_jql(project, issue_type, status,parent,days,custom_jql):
         st.write('Please select a project key!')
         return
     if issue_type:
-        jql_parts.append(f'issuetype = "{issue_type}"')
+        joined_issue_type = '","'.join(issue_type)
+        jql_parts.append(f'issuetype in ( "{joined_issue_type}")')
+
     if status:
-        jql_parts.append(f'status = "{status}"')
+        string_status = '","'.join(status)
+        jql_parts.append(f'status in ("{string_status}")')
+
+
     if parent:
         if ',' in parent:
             # assume more then one issue was input
             parents = parent.split(",")
             # Initialize an empty string to hold the final result
-            result_string = ""
+            result_string = "parent in ("
             # Iterate over each element in the list
             for i, element in enumerate(parents):
-                # Add "FNK-" prefix to each element and " or " suffix if it's not the last element
+                # Add "projectkey-" prefix to each element and a comma , if it's not the last element
                 if i < len(parents) - 1:
-                    result_string += "parent = FNK-" + element + " or "
+                    result_string += f'"{project}-{element}",'
                 else:
-                    # If it's the last element, don't add the " or " suffix
-                    result_string += "parent = FNK-" + element 
-
-            jql_parts.append(f'("{result_string}")')
+                    # If it's the last element don't add the )
+                    result_string += f'"{project}-{element}")'
+            jql_parts.append(f'{result_string}')
         else:
         # only one issue
             jql_parts.append(f'parent = "{project}-{parent}"')

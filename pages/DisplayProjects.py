@@ -4,6 +4,9 @@ import pandas as pd
 from modules.config import JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL
 from modules.jira_operations import get_company_managed_projects_df
 
+st.set_page_config(page_title="Display Jira Boards", page_icon="🗂")
+st.title('Jira Boards')
+
 # Initialize session state for JIRA API credentials if not already done
 if 'api_username' not in st.session_state:
     st.session_state['api_username'] = ''
@@ -12,9 +15,6 @@ if 'api_password' not in st.session_state:
 if 'jira_project_key' not in st.session_state:
     st.session_state['jira_project_key'] = ''
 
-st.set_page_config(page_title="Display Jira Boards", page_icon="🗂")
-
-st.title('Jira Boards')
 
 st.write('Overview of all Jira Boards that are "company-managed"')    
 
