@@ -7,6 +7,9 @@ EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT = 'templates/IssueBluePrintRollout.xlsx'
 EXCEL_FILE_PATH_BLUE_PRINT_POC = 'templates/IssueBluePrintPoc.xlsx'
 EXCEL_FILE_PATH_BLUE_PRINT_TEST = 'templates/IssueBluePrintTest.xlsx'
 
+EXCEL_TIMELINE_ELEMENTS = 'timeline_elements.xlsx'
+TIMELINE_POWER_POINT_SLIDE = 'timeline.pptx'
+
 # Jira connection settings
 JIRA_URL = 'https://hypatos.atlassian.net/'
 JIRA_ACCOUNT_ISSUE_TYPE = 'Account'
