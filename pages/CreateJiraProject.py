@@ -89,7 +89,7 @@ if st.button("Create Jira Project"):
     else: 
         with st.container(height=300):
             try:
-                # Get the filepath of the respective BlueprintFile
+                    # Get the filepath of the respective BlueprintFile
                 filepath = get_blue_print_filepath(st.session_state['jira_project_type'])
                 excel_data_blue_print = read_excel(filepath)
                 create_issues_from_excel(jira, excel_data_blue_print,project_startdate)

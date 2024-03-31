@@ -145,8 +145,9 @@ def add_issue_links(jira, excel_data):
 
 def create_issues_from_excel(jira, excel_data,project_startdate):
     # Returns a List of Issues with start and enddates
+    
     dates=compute_dates(excel_data, project_startdate)
-
+    
     # Iterate through rows and create Jira issues and subtasks
     for index, row in excel_data.iterrows():
         summary = row['Summary']
@@ -230,8 +231,7 @@ def create_issues_from_excel(jira, excel_data,project_startdate):
             # Check if the task has a parent issue
             if parent_key is not None:
                 # Find parent issue using summary
-                parent_issue = jira.search_issues(f'project={get_jira_project_key()} AND summary~"{parent_key}"', maxResults=1)
-
+                parent_issue = jira.search_issues(f'project={get_jira_project_key()} AND summary~"{parent_key}" AND issuetype = {JIRA_EPIC_ISSUE_TYPE}', maxResults=1)
                 if parent_issue:
                     parent_key = parent_issue[0].key
                     issue_dict = create_jira_issue(summary, JIRA_TASK_ISSUE_TYPE, start_date_normalized, due_date_normalized, parent_key,description)
@@ -451,6 +451,7 @@ def compute_dates(excel_data, project_startdate):
     task_info = []
     # First Iteration: compute start and enddates for Tasks
     for index, row in excel_data.iterrows():
+        
         summary = row['Summary']
         issue_type = row['IssueType']
         duration = row.get('Duration', 0)
