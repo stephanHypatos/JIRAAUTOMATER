@@ -147,7 +147,6 @@ def create_issues_from_excel(jira, excel_data,project_startdate):
     # Returns a List of Issues with start and enddates
     
     dates=compute_dates(excel_data, project_startdate)
-    
     # Iterate through rows and create Jira issues and subtasks
     for index, row in excel_data.iterrows():
         summary = row['Summary']
@@ -467,15 +466,15 @@ def compute_dates(excel_data, project_startdate):
                     'end_date': end_date
                 })
         
-        if issue_type =='Project':
-            start_date = project_startdate
-            end_date = project_startdate
-            task_info.append({
-                    'summary': summary,
-                    'parent': row['Parent'],
-                    'start_date': project_startdate,
-                    'end_date': end_date
-                })
+        #    if issue_type =='Project':
+        #        start_date = project_startdate
+        #        end_date = project_startdate
+        #        task_info.append({
+        #                'summary': summary,
+        #                'parent': row['Parent'],
+        #                'start_date': project_startdate,
+        #                'end_date': end_date
+        #            })
 
         if issue_type == 'Task':
             # Check if there's already a task with the same summary in task_info
@@ -551,7 +550,7 @@ def compute_dates(excel_data, project_startdate):
         summary = row['Summary']
         issue_type = row['IssueType']
         parent = row['Parent']
-
+        
         if issue_type == 'Epic':
             epic_start_date = min(task['start_date'] for task in task_info if task['parent'] == summary)
             epic_end_date = max(task['end_date'] for task in task_info if task['parent'] == summary)
@@ -566,11 +565,29 @@ def compute_dates(excel_data, project_startdate):
                 # If epic not found in task_info (should not happen), create a new entry
                 task_info.append({
                     'summary': summary,
-                    'parent': 'NoParent',
+                    'parent': parent,
                     'start_date': epic_start_date,
                     'end_date': epic_end_date,
                 })
+    
+    # Fifth Iteration: compute start and enddates for Issue Type "Project"
+    for index, row in excel_data.iterrows():
+        summary = row['Summary']
+        issue_type = row['IssueType']
+        parent = row['Parent']
         
+        if issue_type == 'Project':
+            start_date = project_startdate
+            # iterate through all tasks in the temp dict task_info - look for those that have Pilot or Rollout as parent - get the max endate
+            project_end_date = max(task['end_date'] for task in task_info if task['parent'] == summary)
+            end_date = project_end_date
+            task_info.append({
+                    'summary': summary,
+                    'parent': 'NoParent',
+                    'start_date': project_startdate,
+                    'end_date': end_date
+                })
+            
     return task_info
 
 def getIssueDate(dates,summary,date_type='start_date'):
