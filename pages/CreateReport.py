@@ -40,8 +40,9 @@ with st.form("jql_form", clear_on_submit=False):
     # Select Project Key
     project = st.selectbox("Select Jira Board", project_keys, index=0)
     issue_type = st.multiselect("Select Issue Type", [JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_ACCOUNT_ISSUE_TYPE])
-    status = st.multiselect("Select Status", ["Open", "In Progress", "Done","To Do","Waiting for Input"],['To Do', 'In Progress'])
+    status = st.multiselect("Select Status", ["Open", "In Progress", "Done","To Do","In Review"],['To Do', 'In Progress'])
     parent = st.text_input("Parent Issue(s) (Want to input >1 issue? Only use the number and a comma  to separate: 23,12,12)")
+    owner = st.selectbox("Select Owner (Optional)", [" ","Customer", "Hypatos"],index=0)
     days = st.slider('Select days to due', 0, 30)
     st.markdown('Or just input your custom JQL.')
     manual_jql = st.text_input('Custom JQL ( Project must selected in the dropdown)')
@@ -52,7 +53,7 @@ with st.form("jql_form", clear_on_submit=False):
     submitted = st.form_submit_button("Generate JQL")
 
 if submitted and (project or issue_type or status or parent or manual_jql):
-    jql_query = generate_jql(project, issue_type,status,parent,days,manual_jql)
+    jql_query = generate_jql(project, issue_type,status,parent,owner,days,manual_jql)
     save_jira_project_key(project)
     save_jql(jql_query)
     st.code(jql_query, language='sql')

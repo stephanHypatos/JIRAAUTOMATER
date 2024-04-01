@@ -249,7 +249,7 @@ def create_issues_from_excel(jira, excel_data,project_startdate):
             # Check if the sub-task has a parent issue
             if parent_key is not None:
                 # Find parent issue using summary
-                parent_issue = jira.search_issues(f'project={get_jira_project_key()} AND summary~"{parent_key}"', maxResults=1)
+                parent_issue = jira.search_issues(f'project={get_jira_project_key()} AND summary~"{parent_key}" AND issuetype = {JIRA_TASK_ISSUE_TYPE}', maxResults=1)
                 if parent_issue:
                     parent_key = parent_issue[0].key
                     issue_dict = create_jira_issue(summary, JIRA_SUBTASK_ISSUE_TYPE, start_date_normalized, due_date_normalized, parent_key, description)
@@ -607,7 +607,7 @@ def getIssueDate(dates,summary,date_type='start_date'):
 
 
 # Generate a JQL string based on the selected project, issue type, and status etc
-def generate_jql(project, issue_type, status,parent,days,custom_jql):
+def generate_jql(project, issue_type, status,parent,owner,days,custom_jql):
     jql_parts = []
     if project:
         jql_parts.append(f'project = "{project}"')
@@ -641,6 +641,11 @@ def generate_jql(project, issue_type, status,parent,days,custom_jql):
         else:
         # only one issue
             jql_parts.append(f'parent = "{project}-{parent}"')
+    if owner:
+        if owner == "Customer":
+            jql_parts.append(f'cf[10127] is not EMPTY')
+        else:
+            pass
     if days:
         jql_parts.append(f'due >= startOfDay() AND due <= endOfDay("+{days}d")')
     if custom_jql:
