@@ -5,7 +5,7 @@ import math
 from datetime import datetime
 from pptx import Presentation
 from pptx.util import Inches
-from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL,EXCEL_FILE_PATH,EXCEL_FILE_PATH_BLUE_PRINT_PILOT,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT,EXCEL_FILE_PATH_BLUE_PRINT_POC,EXCEL_FILE_PATH_BLUE_PRINT_TEST#,JIRA_PROJECT,
+from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL,EXCEL_FILE_PATH,EXCEL_FILE_PATH_BLUE_PRINT_PILOT,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT,EXCEL_FILE_PATH_BLUE_PRINT_POC,EXCEL_FILE_PATH_BLUE_PRINT_TEST,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT_WIL#,JIRA_PROJECT,
 from modules.utils import normalize_NaN, normalize_date, calculate_end_date
 
 
@@ -54,8 +54,11 @@ def get_blue_print_filepath(sessionStateProjectType):
         filepath=EXCEL_FILE_PATH_BLUE_PRINT_PILOT
     if sessionStateProjectType == 'ROLLOUT':
         filepath=EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT
+    if sessionStateProjectType == 'ROLLOUT_WIL':
+        filepath=EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT_WIL
     if sessionStateProjectType == 'TEST':
         filepath=EXCEL_FILE_PATH_BLUE_PRINT_TEST
+    
     return filepath
 
 # Function to get all keys of company-managed projects in Jira

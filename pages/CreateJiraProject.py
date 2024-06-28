@@ -36,7 +36,7 @@ with st.expander('Expand for more info on how to find the Jira Project Key'):
 save_jira_project_key(project)
 
 # Select and Save Project Type
-project_type = st.selectbox("Select Projecttype", ["POC", "PILOT", "ROLLOUT", "TEST"], index=0)
+project_type = st.selectbox("Select Projecttype", ["POC", "PILOT", "ROLLOUT","ROLLOUT_WIL","TEST"], index=0)
 with st.expander('Expand for more info about the Project Type'):
     st.markdown("""
           There are two scenarios: 

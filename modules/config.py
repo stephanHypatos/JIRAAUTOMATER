@@ -6,6 +6,7 @@ EXCEL_FILE_PATH_BLUE_PRINT_PILOT = 'templates/IssueBluePrintPilot.xlsx'
 EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT = 'templates/IssueBluePrintRollout.xlsx'
 EXCEL_FILE_PATH_BLUE_PRINT_POC = 'templates/IssueBluePrintPoc.xlsx'
 EXCEL_FILE_PATH_BLUE_PRINT_TEST = 'templates/IssueBluePrintTest.xlsx'
+EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT_WIL = 'templates/IssueBluePrintRolloutWIL.xlsx'
 
 EXCEL_TIMELINE_ELEMENTS = 'timeline_elements.xlsx'
 TIMELINE_POWER_POINT_SLIDE = 'timeline.pptx'
