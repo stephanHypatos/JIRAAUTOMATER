@@ -188,7 +188,7 @@ def add_issue_links(jira, excel_data):
 
 def create_issues_from_excel(jira, excel_data,project_startdate):
     # Returns a List of Issues with start and enddates
-    
+
     dates=compute_dates(excel_data, project_startdate)
     # Iterate through rows and create Jira issues and subtasks
     for index, row in excel_data.iterrows():
@@ -305,6 +305,12 @@ def create_issues_from_excel(jira, excel_data,project_startdate):
 
     # Add issue links after all issues are created
     add_issue_links(jira, excel_data)
+
+    # Update Jira Issue type Project if user provided project name
+    if st.session_state['project_name_user']:
+        issue=jira.issue(project_issue.key)
+        issue.update(summary=st.session_state['project_name_user'])
+    return
 
 def update_issue_overview_sheet(excel_data, issue_data):
     # Create a DataFrame for the "IssueOverview" sheet with selected columns

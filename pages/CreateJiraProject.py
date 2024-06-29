@@ -63,12 +63,15 @@ if st.session_state['jira_project_key']:
 project_startdate_raw = st.text_input('Project Startdate','2024-01-01')
 project_startdate = pd.to_datetime(project_startdate_raw)
 
+st.session_state['project_name_user']= st.text_input('Provide a project name',placeholder="Optional, if empty project name is project type (PILOT, POC,...)")
 
 
 if st.session_state["jira_project_key"]:
         st.write(f'Jira Project will be created on the Jira Work Management Board: {st.session_state["jira_project_key"]}')
         st.write('Your project starts at: ', project_startdate)
         st.write('Your project will be attached to the parent issue: ', parent)
+        if st.session_state["project_name_user"]:
+            st.write(f'Your project will be named: {st.session_state["project_name_user"]}')
 
 if st.button("Create Jira Project"):
     
