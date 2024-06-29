@@ -1,11 +1,10 @@
 import streamlit as st
 from jira import JIRA
 import pandas as pd 
-
-from modules.jira_operations import delete_jira_issue,create_jira_issue,get_issue_key,add_issue_links,create_issues_from_excel,get_issues_from_jira,update_issue_overview_sheet,update_jira_issues,has_cf,compute_dates,get_issues_from_jira_to_update,get_issues_from_jira_v2,update_dates_for_blocked_issues,get_jira_project_key,save_jira_project_key,save_credentials,save_jql,get_project_keys,save_jira_project_type,get_blue_print_filepath,get_jira_issue_type_account_key,save_jira_account_type_parent
+from modules.jira_operations import delete_jira_issue
 from modules.config import JIRA_URL
 
-st.set_page_config(page_title="Delete Jira Project", page_icon="🚨")
+st.set_page_config(page_title="Delete Jira Issue", page_icon="🚨")
 st.title('Delete Jira Issue')
 
 # Initialize session state for JIRA API credentials if not already done
