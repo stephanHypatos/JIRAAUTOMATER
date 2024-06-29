@@ -87,6 +87,46 @@ def get_jira_issue_type_account_key(jira_url, username, password):
     select_options.extend(parent_keys)
     return select_options
 
+# get all child issues of a jira issue
+def get_children_issues(jira, issue_key):
+    issue = jira.issue(issue_key)
+    # List to store children issues
+    children_issues = []
+    
+    #Helper function to find issues linked to the given issue
+    def get_linked_issues(issue_key):
+        jql = f'"parent" = {issue_key}'
+        return jira.search_issues(jql)
+
+    linked_issues=get_linked_issues(issue_key)
+    # Add linked issues to the list "children_issues"
+    if linked_issues:
+        for linked_issue in linked_issues:
+            if linked_issue.fields.issuetype.name.lower() == 'epic':
+                linked_issues_tasks=get_linked_issues(linked_issue)
+                for linked_issues_task in linked_issues_tasks:
+                    children_issues.append(linked_issues_task.key)
+
+            children_issues.append(linked_issue.key)
+        return children_issues
+    return
+
+def delete_jira_issue(jira,parent_issue_key):
+    if parent_issue_key:
+        child_issues = get_children_issues(jira,parent_issue_key)
+        if child_issues:
+            for issue_key in child_issues:
+                issue = jira.issue(issue_key)
+                issue.delete(deleteSubtasks=True)
+                st.write(f"Jira Issue: {issue} deleted")
+                st.empty()
+    else: 
+        return
+    issue = jira.issue(parent_issue_key)
+    issue.delete(deleteSubtasks=True)
+    st.write(f"Jira Issue: {issue} deleted")
+    
+    return
 
 def create_jira_issue(summary, issue_type, start_date=None, due_date=None, parent_key=None, description_key=None):
     issue_dict = {
