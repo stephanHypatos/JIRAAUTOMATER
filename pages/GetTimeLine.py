@@ -8,6 +8,10 @@ from pptx import Presentation
 from openpyxl import load_workbook
 from openpyxl.styles import NamedStyle
 from datetime import datetime
+from modules.config import JIRA_URL
+
+st.set_page_config(page_title="Get Timelime Slide", page_icon=":calendar:")
+st.title('Get Timeline Slide ')
 
 # Get the excelfile and the slidedeck template
 ##########################################################################
@@ -95,11 +99,5 @@ with open(excel_path, "rb") as f:
     )
 
 
-## Cool way of getting User Input
-st.sidebar.header("Options")
-options_form=st.sidebar.form("options form")
-user_name=options_form.text_input("user_name")
-add_data=options_form.form_submit_button()
-if add_data:
-    st.write(user_name)
+
 
