@@ -18,7 +18,7 @@ if 'jira_project_key' not in st.session_state:
 jira_issue = st.text_input("Provide Jira Issue-Key")
 
 st.warning("WARNING: This will delete the provided Jira Issue including all its children! You can delete issues of type: project, epic or task. You cant delete issues of type account",icon="⚠️")
-if st.button("Delete Jira Ussue"):
+if st.button("Delete Jira Issue"):
     if not jira_issue:
         st.warning("Please provide Jira Issue Key.")
     else:   

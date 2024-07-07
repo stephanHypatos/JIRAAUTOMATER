@@ -45,6 +45,10 @@ def get_jira_project_key():
 def save_jira_account_type_parent(parent):
     st.session_state['jira_issue_type_account'] = parent
 
+# Function to store the selected Project Issue in session state
+def save_jira_issue_type_project(project):
+    st.session_state['jira_issue_type_project'] = project
+
 # Function retunrns a GLOBAL FILEPATH to Blueprintfile
 def get_blue_print_filepath(sessionStateProjectType):
     filepath=None
@@ -87,6 +91,18 @@ def get_jira_issue_type_account_key(jira_url, username, password):
     select_options.extend(parent_keys)
     return select_options
 
+# Function returns a list of JIRA ISSUES ON a JWM Board of type= Project
+def get_jira_issue_type_project_key(jira_url, username, password):
+    jira =  JIRA(jira_url, basic_auth=(username, password))
+    project_key = get_jira_project_key()
+    query = f'project="{project_key}" AND issuetype="Project"'
+    project_issue_keys = jira.search_issues(query, maxResults=10)
+    project_keys= [project.key for project in project_issue_keys]
+    select_options = [" "]
+    select_options.extend(project_keys)
+    return select_options
+
+
 # get all child issues of a jira issue
 def get_children_issues(jira, issue_key):
     issue = jira.issue(issue_key)
@@ -110,6 +126,35 @@ def get_children_issues(jira, issue_key):
             children_issues.append(linked_issue.key)
         return children_issues
     return
+
+def get_children_issues_for_timeline(jira, issue_key):
+    issue = jira.issue(issue_key)
+    # List to store children issues
+    children_issues = []
+    
+    #Helper function to find issues linked to the given issue
+    def get_linked_issues(issue_key):
+        jql = f'"parent" = {issue_key}'
+        return jira.search_issues(jql)
+
+    linked_issues=get_linked_issues(issue_key)
+    # Add linked issues to the list "children_issues"
+    if linked_issues:
+        for linked_issue in linked_issues:
+            if linked_issue.fields.issuetype.name.lower() == 'epic':
+                linked_issues_tasks=get_linked_issues(linked_issue)
+                for linked_issues_task in linked_issues_tasks:
+                    if linked_issues_task.fields.issuetype.name.lower() == 'task':
+                        linked_issues_subtasks=get_linked_issues(linked_issues_task)
+                        for linked_issues_subtask in linked_issues_subtasks:
+                            children_issues.append(linked_issues_subtask.key)        
+                    children_issues.append(linked_issues_task.key)
+            children_issues.append(linked_issue.key)
+        return children_issues
+    return
+
+
+
 
 def delete_jira_issue(jira,parent_issue_key):
     if parent_issue_key:
@@ -702,7 +747,7 @@ def generate_jql(project, issue_type, status,parent,owner,days,custom_jql):
 
     return " AND ".join(jql_parts)
 
-# Function Returns a list of Jira Projects and theirKeys
+# Function returns a list of Jira Projects and theirKeys
 def get_company_managed_projects_df(jira_url, username, password):
     # Connect to the JIRA server
     jira = JIRA(jira_url, basic_auth=(username, password))
@@ -717,6 +762,72 @@ def get_company_managed_projects_df(jira_url, username, password):
     # Create a DataFrame from the filtered data
     df = pd.DataFrame(data)
     return df
+
+
+# Function to retrieve all issues of a project that are relevant for updating the powerpoint timeline (gantt)
+def get_all_jira_issues_of_project(jira, parent_issue_key):
+    issue_data = []
+
+    # Change the names according to your needs - those are the issue summaries (names)
+    workshop_summaries_pilot= [
+    'Perform Technical Workshop', 
+    'Perform Assessment Workshop', 
+    'Perform Functional Workshop', 
+    'User Training', 
+    'Project Management', 
+    'Assessment', 
+    'Design', 
+    'Machine Learning', 
+    'Application Implementation', 
+    'Integration Implementation', 
+    'Testing', 
+    'Delivery'
+    ]
+    
+    def get_issue_details(issue):
+        return {
+            'summary': issue.fields.summary,
+            'customfield_10015': getattr(issue.fields, 'customfield_10015', None),
+            'duedate': issue.fields.duedate
+        }
+
+    if parent_issue_key:
+        child_issues = get_children_issues_for_timeline(jira, parent_issue_key)
+        if child_issues:
+            for issue_key in child_issues:
+                issue = jira.issue(issue_key)
+                summary = issue.fields.summary
+                if summary in workshop_summaries_pilot:
+                    issue_data.append(get_issue_details(issue))
+    else:
+        return
+   
+    return issue_data
+
+
+def get_due_date_by_summary(issue_data, summary):
+    try:
+        for issue in issue_data:
+            if issue.get('summary') == summary:
+                duedate = issue.get('duedate')
+                if duedate:
+                    return datetime.strptime(duedate, '%Y-%m-%d')
+        return None
+    except (ValueError, KeyError, TypeError) as e:
+        print(f"Error: {e}")
+        return None
+
+def get_start_date_by_summary(issue_data, summary):
+    try:
+        for issue in issue_data:
+            if issue.get('summary') == summary:
+                startdate = issue.get('customfield_10015')
+                if startdate:
+                    return datetime.strptime(startdate, '%Y-%m-%d')
+        return None
+    except (ValueError, KeyError, TypeError) as e:
+        print(f"Error: {e}")
+        return None
 
 
 ##################################################################################################

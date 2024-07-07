@@ -2,6 +2,8 @@ import math
 import pandas as pd
 from dateutil.parser import parse
 from datetime import datetime, timedelta
+import zipfile
+import io
 
 def normalize_NaN(str): 
     # Normalize the date format to yyyy-MM-dd
@@ -49,5 +51,10 @@ def calculate_end_date(start_date, duration):
         return None
     return start_date + pd.Timedelta(days=duration)
 
+def get_current_day():
+    now = datetime.now()
+    current_day = now.strftime("%d.%m.%Y") # 01.01.2024
+    current_day_short = now.strftime("%d.%m.%y") # 01.01.24
+    return current_day
 
-    
+

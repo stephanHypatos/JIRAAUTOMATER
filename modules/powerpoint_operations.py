@@ -151,3 +151,4 @@ def update_current_calendar_week(slides):
                 # Replace the text in the shape
                 shape.text = f'{get_current_month()} {get_current_year()}'
                 
+
