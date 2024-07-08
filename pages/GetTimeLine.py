@@ -1,7 +1,7 @@
 import streamlit as st
 from jira import JIRA
 import pandas as pd
-from modules.config import JIRA_URL,TIMELINE_POWER_POINT_SLIDE,EXCEL_TIMELINE_ELEMENTS
+from modules.config import JIRA_URL,TIMELINE_POWER_POINT_SLIDE,EXCEL_TIMELINE_ELEMENTS,EXCEL_TIMELINE_ELEMENTS_POC,TIMELINE_POWER_POINT_SLIDE_POC
 from modules.jira_operations import get_jira_issue_type_project_key,save_jira_issue_type_project,get_project_keys,save_jira_project_key,get_all_jira_issues_of_project,get_due_date_by_summary,get_start_date_by_summary,save_jira_project_type
 from modules.excel_operations import apply_named_style_and_fill_to_range
 import tempfile
@@ -58,7 +58,7 @@ if st.session_state['jira_project_key']:
     project = st.selectbox("Select a Project from the given Jira Board", jira_projects, index=0)
     save_jira_issue_type_project(project)
     
-    project_type = st.selectbox("Select Projecttype", [" ", "PILOT"], index=0)
+    project_type = st.selectbox("Select Projecttype", ["POC", "PILOT"], index=0)
     save_jira_project_type(project_type)
 
 # Create a copy of temp excel file
@@ -207,39 +207,3 @@ if st.session_state['zip_buffer']:
         mime="application/zip",
         on_click=clear_zip_buffer
     ) 
-    
-    
-
-
-
-
-# Legacy 
-
-# if st.button("Get Updated Timeline Slide"):
-    
-#     if st.session_state['api_username'] and st.session_state['api_password']:
-#         jira = JIRA(JIRA_URL, basic_auth=(st.session_state['api_username'], st.session_state['api_password']))
-#     else:
-#         st.warning("Please provide Jira credentials.")
-
-
-#     if not st.session_state['jira_project_key']:
-#         st.warning("Please select Jira Board Key.")
-#     if not st.session_state['jira_issue_type_project']:
-#         st.warning("Please select Jira Project Key.")
-
-#     else: 
-#         st.session_state['issue_data'] = get_all_jira_issues_of_project(jira,st.session_state['jira_issue_type_project'])
-#         try:
-#             zip_buffer = download_files_as_zip(TIMELINE_POWER_POINT_SLIDE,EXCEL_TIMELINE_ELEMENTS)
-#             st.download_button(
-#                 label="Download Timeline Files",
-#                 data=zip_buffer,
-#                 file_name="timeline_files.zip",
-#                 mime="application/zip"
-#             )
-#             # st.session_state['issue_data'] = ''
-#             # st.write(st.session_state['issue_data'])
-#         except Exception as e:
-#                 st.warning(f"Error Msg: {e}")
-    
