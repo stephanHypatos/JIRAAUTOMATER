@@ -102,10 +102,11 @@ def copy_excel(excel_template_name):
     sheet['B49']=get_start_date_by_summary(st.session_state['issue_data'], issue_summary)
     sheet['C49']=get_due_date_by_summary(st.session_state['issue_data'], issue_summary)
 
-    # Integration Implementation
-    issue_summary='Integration Implementation'
-    sheet['B50']=get_start_date_by_summary(st.session_state['issue_data'], issue_summary)
-    sheet['C50']=get_due_date_by_summary(st.session_state['issue_data'], issue_summary)
+    if st.session_state['jira_project_type'] =='PILOT':
+        # Integration Implementation
+        issue_summary='Integration Implementation'
+        sheet['B50']=get_start_date_by_summary(st.session_state['issue_data'], issue_summary)
+        sheet['C50']=get_due_date_by_summary(st.session_state['issue_data'], issue_summary)
 
     # Testing
     issue_summary='Testing'
@@ -176,6 +177,7 @@ def download_files_as_zip(slide_template_name,excel_template_name):
 
 def clear_zip_buffer():
     st.session_state['zip_buffer'] = None
+    st.session_state['jira_project_type'] = None
 
 
 
@@ -193,7 +195,10 @@ if st.button("Get Updated Timeline Slide"):
         try:
             with st.spinner('In progress... dont worry, this can take up to 2 mins.'):
                 st.session_state['issue_data'] = get_all_jira_issues_of_project(jira, st.session_state['jira_issue_type_project'])
-                st.session_state['zip_buffer']=download_files_as_zip(TIMELINE_POWER_POINT_SLIDE, EXCEL_TIMELINE_ELEMENTS)
+                if st.session_state['jira_project_type'] == 'POC':
+                    st.session_state['zip_buffer']=download_files_as_zip(TIMELINE_POWER_POINT_SLIDE, EXCEL_TIMELINE_ELEMENTS)
+                else:     
+                    st.session_state['zip_buffer']=download_files_as_zip(TIMELINE_POWER_POINT_SLIDE_POC, EXCEL_TIMELINE_ELEMENTS_POC)
             st.success("Files are ready for download.")
         except Exception as e:
             st.warning(f"Error Msg: {e}")
