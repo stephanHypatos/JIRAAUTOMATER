@@ -58,8 +58,10 @@ if st.session_state['jira_project_key']:
     project = st.selectbox("Select a Project from the given Jira Board", jira_projects, index=0)
     save_jira_issue_type_project(project)
     
-    project_type = st.selectbox("Select Projecttype", ["POC", "PILOT"], index=0)
+    project_type = st.selectbox("Select the Type of your Project", ["POC", "PILOT"], index=0)
     save_jira_project_type(project_type)
+
+
 
 # Create a copy of temp excel file
 def copy_excel(excel_template_name):
@@ -128,9 +130,10 @@ def copy_excel(excel_template_name):
     issue_summary='Perform Functional Workshop'
     sheet['C35']=get_start_date_by_summary(st.session_state['issue_data'], issue_summary)
     
-    # Perform Technical Workshop
-    issue_summary='Perform Technical Workshop'
-    sheet['C36']=get_start_date_by_summary(st.session_state['issue_data'], issue_summary)
+    if st.session_state['jira_project_type'] =='PILOT':
+        # Perform Technical Workshop
+        issue_summary='Perform Technical Workshop'
+        sheet['C36']=get_start_date_by_summary(st.session_state['issue_data'], issue_summary)
     
     # Apply  formatting to the cells
     date_style = NamedStyle(name="date_style", number_format="DD.MM.YY")
@@ -178,6 +181,7 @@ def download_files_as_zip(slide_template_name,excel_template_name):
 def clear_zip_buffer():
     st.session_state['zip_buffer'] = None
     st.session_state['jira_project_type'] = None
+    st.session_state['issue_data'] = None
 
 
 
@@ -191,14 +195,19 @@ if st.button("Get Updated Timeline Slide"):
         st.warning("Please select Jira Board Key.")
     if not st.session_state['jira_issue_type_project']:
         st.warning("Please select Jira Project Key.")
+    
     else:
         try:
             with st.spinner('In progress... dont worry, this can take up to 2 mins.'):
                 st.session_state['issue_data'] = get_all_jira_issues_of_project(jira, st.session_state['jira_issue_type_project'])
-                if st.session_state['jira_project_type'] == 'POC':
+                if st.session_state['jira_project_type'] == 'PILOT':
+                    # Generate Files for Pilot
                     st.session_state['zip_buffer']=download_files_as_zip(TIMELINE_POWER_POINT_SLIDE, EXCEL_TIMELINE_ELEMENTS)
-                else:     
+                   
+                else: 
+                    # Generate Files for PoC 
                     st.session_state['zip_buffer']=download_files_as_zip(TIMELINE_POWER_POINT_SLIDE_POC, EXCEL_TIMELINE_ELEMENTS_POC)
+            
             st.success("Files are ready for download.")
         except Exception as e:
             st.warning(f"Error Msg: {e}")
