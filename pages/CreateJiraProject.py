@@ -40,8 +40,8 @@ project_type = st.selectbox("Select Projecttype", ["POC", "PILOT", "ROLLOUT","RO
 with st.expander('Expand for more info about the Project Type'):
     st.markdown("""
           There are two scenarios: 
-          - You create a project for the first time choose: POC or ROLLOUT. (A generic Issue Type= "Account" called "CustomerName" will be created this Issue will be the parent of you Project. After successful project creation you can rename this Issue.)
-          - You want to create a Rollout project and an Issue Type= "Account" already exists: choose ROLLOUT
+          - You create a project for the first time choose: POC or ROLLOUT. (A generic Issue Type= "Account" called "CustomerName" will be created this Issue will be the parent of your Project. After successful project creation you can rename this Issue.)
+          - You want to create a POC or PILOT project and an Issue Type= "Account" already exists: select the parent Account Key and then choose POC or PILOT or ROLLOUT
           """)
     
 save_jira_project_type(project_type)
