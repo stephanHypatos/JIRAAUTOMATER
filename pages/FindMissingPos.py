@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd 
+import io 
 
 st.set_page_config(page_title="Find Missing PO", page_icon="ℹ️")
-st.title('FIND non-existent Purchase Orders in HY DATABASE')
+st.title('Find non-existent Purchase Orders in HY DATABASE')
 
 # Initialize session state for JIRA API credentials if not already done
 if 'api_username' not in st.session_state:
@@ -33,6 +34,15 @@ if st.session_state['api_username'] and st.session_state['api_password']:
     # Streamlit interface for file upload
     uploaded_po = st.file_uploader("Upload the unique POs file", type=["csv", "xlsx"])
     uploaded_de = st.file_uploader("Upload the query results file", type=["csv", "xlsx"])
+    
+
+    def convert_df_to_excel(df):
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Filtered Data')
+        processed_data = output.getvalue()
+        return processed_data
+
 
     # Function to load file based on its extension
     def load_file(file):
@@ -44,14 +54,19 @@ if st.session_state['api_username'] and st.session_state['api_password']:
             st.error(f"Unsupported file format: {file.name}")
             return None
 
-    # Normalize PO numbers by removing curly braces, commas, and trimming whitespace
-    def normalize_po(po_value):
+    # Normalize and split PO numbers: remove curly braces and split by comma
+    def normalize_and_split_po(po_value):
         if isinstance(po_value, str):
-            # Remove curly braces, commas, and strip leading/trailing spaces
-            po_value = po_value.replace("{", "").replace("}", "").replace(",", "").strip()
-        return po_value
+            # Remove curly braces and strip spaces
+            po_value = po_value.replace("{", "").replace("}", "").strip()
+            # Split by comma to handle multiple PO numbers
+            po_numbers = po_value.split(",")
+            # Strip spaces from each PO number and return the list
+            return [po.strip() for po in po_numbers]
+        return [str(po_value)]  # Return the value as a string inside a list if it's a single PO number
 
     # Only proceed if both files are uploaded
+
     if uploaded_po is not None and uploaded_de is not None:
         # Load the uploaded files
         df_po = load_file(uploaded_po)
@@ -59,35 +74,78 @@ if st.session_state['api_username'] and st.session_state['api_password']:
 
         # Ensure files were successfully loaded
         if df_po is not None and df_de is not None:
-            # Normalize the PO columns in both dataframes
-            df_po["PO_Number"] = df_po["PO_Number"].apply(normalize_po).astype(str).str.strip()
-            df_de["Studio Normalized Value"] = df_de["Studio Normalized Value"].apply(normalize_po).astype(str).str.strip()
+            # Rename column "Raw Data → ExternalId" to "PO_Number" in df_po
+            #df_po.rename(columns={"Raw Data → ExternalId": "PO_Number"}, inplace=True)
 
-            # Process the data by comparing normalized PO values
-            df_de["po_found"] = df_de["Studio Normalized Value"].apply(
-                lambda x: 1 if x in df_po["PO_Number"].values else 0
-            )
+            # Normalize and split the PO numbers in df_de
+            df_de["Studio Normalized Value"] = df_de["Studio Normalized Value"].apply(normalize_and_split_po)
             
-            # Display the entire dataframe with po_found column
-            st.write("### Processed Dataframe with po_found Column:")
-            st.dataframe(df_de)
-            
+            # Expand the rows: each PO number gets its own row (explode function)
+            df_de_exploded = df_de.explode("Studio Normalized Value").reset_index(drop=True)
+
+            # Ensure PO numbers in df_po are treated as strings
+            df_po["PO_Number"] = df_po["PO_Number"].apply(str).apply(normalize_and_split_po).explode().str.strip()
+
+            # Ensure PO numbers in df_de_exploded are treated as strings
+            df_de_exploded["Studio Normalized Value"] = df_de_exploded["Studio Normalized Value"].apply(str).str.strip()
+
+            # Debugging: Check exploded dataframe
+            st.write("### All documents in Studio with PO number extracted")
+            st.dataframe(df_de_exploded)
+
+            # Now, process the data by checking if PO numbers in df_de_exploded match those in df_po
+            def check_po_found(po):
+                # Check if PO is found in df_po["PO_Number"].values
+                return 1 if po in df_po["PO_Number"].values else 0
+
+            # Apply the check_po_found function for each PO number
+            df_de_exploded["po_found"] = df_de_exploded["Studio Normalized Value"].apply(check_po_found)
 
             # Filter rows where po_found == 0
-            df_filtered = df_de[df_de["po_found"] == 0]
+            df_filtered = df_de_exploded[df_de_exploded["po_found"] == 0]
             
             # Display filtered dataframe with po_found == 0
-            st.write("### Rows where po_found == 0:")
+            st.write("### Documents in Studio with missing POs in DB:")
             st.dataframe(df_filtered)
             
             # Display clickable URLs where po_found == 0
             if "URL" in df_filtered.columns:
-                st.write("### Document with missing POs in DB:")
+                st.write("### Documents with missing POs in DB:")
                 for url in df_filtered["URL"]:
                     if pd.notna(url):  # Ensure the URL is not NaN
                         st.markdown(f"[{url}]({url})")
             else:
-                st.error("The 'URL' column does not exist in the uploaded Delivery (DE) file.")   
+                st.error("The 'URL' column does not exist in the uploaded Studio Data file.")
+
+# Total number of documents (total rows in exploded dataframe)
+        total_documents = df_de_exploded.shape[0]
+        
+        # Number of documents without PO (where po_found == 0)
+        documents_without_po = df_filtered.shape[0]
+        
+        # Percentage of documents without PO
+        if total_documents > 0:
+            percentage_without_po = (documents_without_po / total_documents) * 100
+        else:
+            percentage_without_po = 0
+
+        # Display results
+        st.write("### Summary:")
+        st.write(f"**Total number of documents:** {total_documents}")
+        st.write(f"**Number of documents without PO:** {documents_without_po}")
+        st.write(f"**Percentage of documents without PO:** {percentage_without_po:.2f}%")
+
+        # Convert the filtered dataframe to Excel for download
+        excel_data = convert_df_to_excel(df_filtered)
+
+        # Provide download button for the Excel file
+        st.download_button(
+            label="Download filtered data as Excel",
+            data=excel_data,
+            file_name="filtered_data.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
 else:
      st.warning("Please provide Jira credentials.")
 
