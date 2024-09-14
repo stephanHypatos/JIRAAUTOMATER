@@ -18,7 +18,7 @@ if 'jira_project_key' not in st.session_state:
 if 'jira_issue_type_project' not in st.session_state:
     st.session_state['jira_issue_type_project'] = ''
 if 'data_frame_for_report' not in st.session_state:
-    st.session_state['data_frame_for_report'] = ''
+    st.session_state['data_frame_for_report'] = None
 
 
 with st.expander("Expand to read the instructions!"):
@@ -29,7 +29,7 @@ with st.expander("Expand to read the instructions!"):
         ### Prerequisite: 
         - Template for your weekly report is uploaded to Github
         - Jira API credentials - see Authenticate
-        
+
         ### How does it work? 
 
 
@@ -44,6 +44,8 @@ with st.expander("Expand to read the instructions!"):
     """
     )
 
+jira = JIRA(JIRA_URL, basic_auth=(st.session_state['api_username'], st.session_state['api_password']))
+
 # Step 1: Select Jira Board
 project_keys = get_project_keys(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
 project = st.selectbox("Select Jira Board", project_keys, index=0)
@@ -57,8 +59,6 @@ save_jira_project_key(project)
 
 # Step 2: Select a Project from the selected Jira Board
 if st.session_state['jira_project_key']:
-    jira = JIRA(JIRA_URL, basic_auth=(st.session_state['api_username'], st.session_state['api_password']))
-    
     # Get all Projects (Issue Types)
     jira_projects = get_jira_issue_type_project_key(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
     project_issue_key = st.selectbox("Select a Project from the given Jira Board", jira_projects, index=0)
@@ -96,10 +96,10 @@ if st.session_state['jira_project_key']:
             owner_list = st.multiselect('Select Owner:', options=df['Owner'].unique()) if 'Owner' in df.columns else []
             
             #Ids selected by user
-            selected_rows = st.multiselect('Select issues to filter by ID:',options=df['Id'].unique())
+            selected_rows = st.multiselect('Select issues to filter by ID:',options=df['Id'].unique()) if 'Id' in df.columns else []
 
             # Days Filter (Filter by Due Date range)
-            days = st.slider('Due in next X days:', 0, 30, 0)
+            days = st.slider('Due in next X days ( if 0 applied filter is not set ):', 0, 30, 0)
             
             # Apply Filters when button is clicked
             if st.button('Apply Filters'):
@@ -118,17 +118,21 @@ if st.session_state['jira_project_key']:
         else:
             st.warning("No data available to filter. Please fetch the issues first.")
 
-    if not st.session_state['data_frame_for_report'].empty:
-        if st.button("Create Status Report"):
-            
-            presentation_path= create_powerpoint(st.session_state['data_frame_for_report'])
-            st.success("Weekly Report created.")
-            # Create a download button in the Streamlit app
-            with open(presentation_path, "rb") as f:
-                st.download_button(
-                    label="Download PowerPoint Status Report",
-                    data=f,
-                    #file_name="presentation.pptx",
-                    file_name=f'{get_jira_project_key()}_Weekly_Status_Report_CW_{get_calendar_week()}.pptx',
-                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                )
+        if st.session_state['data_frame_for_report'] is not None:
+            if st.button("Create Status Report"):
+                try:
+                    presentation_path= create_powerpoint(st.session_state['data_frame_for_report'])
+                    st.success("Weekly Report created.")
+                    # Create a download button in the Streamlit app
+                    with open(presentation_path, "rb") as f:
+                        st.download_button(
+                            label="Download PowerPoint Status Report",
+                            data=f,
+                            #file_name="presentation.pptx",
+                            file_name=f'{get_jira_project_key()}_Weekly_Status_Report_CW_{get_calendar_week()}.pptx',
+                            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                        )
+                except:
+                    st.warning("No filtered data to generate a report. Please fetch data and optionally apply filters first.")
+        else:
+            st.warning("No filtered data to generate a report. Please apply filters first.")
