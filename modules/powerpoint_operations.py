@@ -8,8 +8,65 @@ from modules.jira_operations import get_jira_project_key
 import streamlit as st
 import tempfile
 
-# create the presentation from a template
-def create_powerpoint(jira, jql):
+
+## get all children issues applies a filter and creates a powerpoint slide deck
+def create_powerpoint(df):
+
+     # Convert 'Due Date' to 'YYYY-MM-DD' format ( in order to not display h m s in the slide)
+    #df['Due Date'] = df['Due Date'].dt.strftime('%Y-%m-%d')
+    # Drop the 'Issue Type' column and reassign - as this is not part of table
+    df = df.drop(columns=['Issue Type'])
+    
+    # Path to template and output PowerPoint files (Weekly Report)
+    template_path = f'templates/template_{get_jira_project_key()}.pptx' 
+    # Load PowerPoint template
+    presentation = Presentation(template_path)
+
+    # Copy the second slide (assuming it's the template)
+    template_slide = presentation.slides[1]
+    slide_layout = template_slide.slide_layout
+
+    # Initialize variables for row count and slide count
+    row_count = 0
+    slide_count = 1
+
+    # Iterate through rows in the DataFrame with a step of 5
+    for start_row in range(0, len(df), 5):
+        end_row = start_row + 5
+        rows_to_display = df.iloc[start_row:end_row]
+
+        # Create a new slide
+        new_slide = presentation.slides.add_slide(slide_layout)
+        title_shape = new_slide.shapes.title
+        #title_shape.text = f"Actions Overview ({len(issues)} issues)"
+        title_shape.text = f"Actions Overview"
+
+        # Add data to the current slide
+        add_data_to_slide(new_slide, rows_to_display)
+
+        # Increment slide count
+        slide_count += 1
+
+    
+    # Update the Calendar Week Placeholders in the slidedeck
+    update_current_calendar_week(presentation.slides)
+    
+    # Construct the final filename by calling the get current Jira Project Key and get Calendar Week
+    #presentationFileName = f'{output_path}{get_jira_project_key()}_Weekly_Status_Report_CW_{get_calendar_week()}.pptx'
+    
+    # Save the presentation
+    #Using a with statement is a good practice when dealing with file operations, 
+    #as it ensures that the file is properly closed, even if an error occurs during the processing. 
+    #In the case of the Presentation class in the python-pptx library, the library itself is designed to handle file operations internally.
+    #presentation.save(presentationFileName)
+
+    # Save the presentation to a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pptx") as tmpfile:
+        presentation.save(tmpfile.name)
+        return tmpfile.name
+    
+# create the presentation from a template args. jql and jira credentials 
+def create_powerpoint_presentation_jql(jira, jql):
     # Get issues from Jira using JQL
     issues = jira.search_issues(jql)
 

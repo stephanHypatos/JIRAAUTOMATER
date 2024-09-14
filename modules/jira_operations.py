@@ -2,7 +2,7 @@ from jira import JIRA
 import pandas as pd
 import streamlit as st
 import math
-from datetime import datetime
+from datetime import datetime,timedelta
 from pptx import Presentation
 from pptx.util import Inches
 from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL,EXCEL_FILE_PATH,EXCEL_FILE_PATH_BLUE_PRINT_PILOT,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT,EXCEL_FILE_PATH_BLUE_PRINT_POC,EXCEL_FILE_PATH_BLUE_PRINT_TEST,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT_WIL#,JIRA_PROJECT,
@@ -154,7 +154,169 @@ def get_children_issues_for_timeline(jira, issue_key):
     return
 
 
+def create_report_dataframe(jira,issuekey):
+    """
+    Fetches all child issues for a given Jira issue key and returns a DataFrame.
+    
+    Args:
+    - jira: The Jira client object
+    - issuekey: The key of the Jira issue to get children for
+    
+    Returns:
+    - df (DataFrame): A DataFrame containing all the children issues.
+    """
+    # Get issues from Jira using issuekey
+    jira_issues = get_children_issues_for_report(jira, issuekey)
 
+    if not jira_issues:
+        st.warning(f'The selected project: {issuekey} has no children issues. Choose another project.')
+        return pd.DataFrame()  # Return an empty DataFrame
+
+    # Initialize an empty list to store the results
+    issue_data = []
+
+    # Iterate over the issue keys and fetch details
+    for key in jira_issues:
+        try:
+            issue = jira.issue(key)
+            # Fetch the required fields
+            name = issue.fields.summary
+            issuetype = issue.fields.issuetype.name
+            duedate = issue.fields.duedate
+            start_date = issue.fields.customfield_10015
+            status = issue.fields.status.name
+            owner = getattr(issue.fields.assignee, 'displayName', None)
+            ext_owner = issue.fields.customfield_10127
+
+            # Add the data to the list
+            issue_data.append({
+                'Id': key,
+                'Name': name,
+                'Due Date': duedate,
+                'Start Date': start_date,
+                'Status': status,
+                'Owner': owner,
+                'Ext.Owner': ext_owner,
+                'Issue Type': issuetype
+            })
+
+        except Exception as e:
+            print(f"Error fetching data for issue {key}: {e}")
+
+    # Convert to DataFrame
+    df = pd.DataFrame(issue_data)
+
+    # Convert 'Due Date' to datetime and then to date
+    df['Due Date'] = pd.to_datetime(df['Due Date'], errors='coerce').dt.date
+
+    # Store the DataFrame in session state for later use
+    st.session_state['df'] = df
+
+    return df
+
+
+def filter_dataframe(df, issue_type=None, statuses=None, days=None, owner_list=None,selected_rows=None):
+    """
+    Dynamically filters the DataFrame based on the provided conditions.
+
+    Args:
+    - df (DataFrame): The DataFrame to be filtered.
+    - issue_type (list): List of issue types to filter by.
+    - statuses (list): List of statuses to filter by.
+    - days (int): Number of days from today to filter 'Due Date'.
+    - owner_list (list): List of owners to filter by.
+    - selected_rows list: List of ids a user has selected
+
+    Returns:
+    - filtered_df (DataFrame): The filtered DataFrame.
+    """
+    # Start with a filter that includes all rows
+    filter_condition = pd.Series([True] * len(df))
+
+    # Filter by issue type
+    if issue_type:
+        filter_condition &= df['Issue Type'].isin(issue_type)
+
+    # Filter by statuses
+    if statuses:
+        filter_condition &= df['Status'].isin(statuses)
+
+    # Filter by Due Date if 'days' is provided
+    if days is not None and days > 0:
+        today = datetime.now().date()
+        date_from_today = today + timedelta(days=days)
+        filter_condition &= (df['Due Date'].notna()) & (df['Due Date'] >= today) & (df['Due Date'] <= date_from_today)
+
+    # Filter by owner list
+    if owner_list:
+        filter_condition &= df['Owner'].isin(owner_list)
+    
+    # Filter by Id selected by User
+    if selected_rows:
+        filter_condition &= df['Id'].isin(selected_rows)
+
+    # Apply the filter to the DataFrame
+    filtered_df = df[filter_condition]
+
+    return filtered_df
+
+
+def get_users_from_jira_project(jira, project_key):
+    
+    try:
+        # Use search_assignable_users_for_projects to fetch users
+        users = jira.search_assignable_users_for_projects('', project_key)
+        
+        # Extract display names from the user objects
+        user_names = [user.displayName for user in users]
+        select_options = ['None']
+        select_options.extend(user_names)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        user_names = []
+    
+    return select_options
+
+
+
+### fast fetching of all children issues of a given jira parent issue
+def get_children_issues_for_report(jira, issue_key):
+    # List to store children issues
+    children_issues = []
+
+    # Fetch all issues linked directly as children (epics) of the parent issue
+    jql = f'"parent" = {issue_key}'
+    linked_issues = jira.search_issues(jql, maxResults=1000)
+    
+    if not linked_issues:
+        return
+    # Process fetched issues (initially should be epics or direct tasks)
+    for linked_issue in linked_issues:
+        children_issues.append(linked_issue.key)
+
+        # If the issue is an epic, fetch all its tasks
+        if linked_issue.fields.issuetype.name.lower() == 'epic':
+            epic_jql = f'"Epic Link" = {linked_issue.key}'
+            epic_tasks = jira.search_issues(epic_jql, maxResults=1000)
+            
+            # Add tasks and their subtasks
+            for epic_task in epic_tasks:
+                children_issues.append(epic_task.key)
+
+                # Fetch subtasks for each task (if any)
+                if hasattr(epic_task.fields, 'subtasks'):
+                    for subtask in epic_task.fields.subtasks:
+                        children_issues.append(subtask.key)
+        
+        # If the issue is a task, fetch all its subtasks directly
+        elif linked_issue.fields.issuetype.name.lower() == 'task':
+            # Fetch subtasks for each task (if any)
+            if hasattr(linked_issue.fields, 'subtasks'):
+                for subtask in linked_issue.fields.subtasks:
+                    children_issues.append(subtask.key)
+
+    return children_issues
 
 def delete_jira_issue(jira,parent_issue_key):
     if parent_issue_key:
