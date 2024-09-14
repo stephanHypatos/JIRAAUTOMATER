@@ -27,7 +27,7 @@ with st.expander('Key functionalities of the current version'):
         - It offers the capability to calculate the start and end dates of tasks, based on the specified duration for each issue type.
         - You can provide the name of the project if you dont provide one the name of the newly created project will be the selected project type
 
-        ### Weekly/Monthly Report Generation:
+        ### Weekly Report Generation:
 
         - The application can retrieve issues from Jira for a specified project, according to the user-defined criteria for inclusion in the report.
         - It facilitates the creation of PowerPoint slide decks, aggregating and presenting the relevant project data succinctly.
@@ -38,34 +38,36 @@ with st.expander('Key functionalities of the current version'):
         - You can delete issues of type: project, epic or tasl
         - You cant delete issues of type account
 
+        ### Display Boards
+        - display all Company Managed Jira Boards 
+
+        ### Update the Timeline 
+        - Get an updated version of your GANTT CHART THINK CELL Timeline of a Project in a given JIRA Board
+
+        ### Find Missing POs
+        - A bit offtopic -> Debug PO Line Matching Enrichment
+        
         ### Upcoming features
                     
-        - Update the Timeline ( GANTT CHART THINK CELL ) if changes are made to the dates
+        - Create your own Blueprint Project and clone a new project from your blueprint
+        -  Monthly Steer Co Report Generation:
         - Sharepoint Connection in order to make downloading and uploading of slidedecks unnecessary
-        - Update the underlying excel blueprint file in the app
-        - Issue Updates: Updating existing Jira issues based on changes in an Excel file (including changes to summary, status, start date, due date, and description)
-        - Transition Handling: Manages transitions between different statuses of Jira issues.
+        
         """
     )
 with st.expander('Documentation'):
      st.markdown(
         """ 
-        ### Prerequits
+        ### Prerequisites
         - Get jira credentials. If you are here for the first time you might want to read the [documentation](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/)
-        - Jira Workmangagement Board and a project key ( i.e. CUS, STR, etc)
-    
 
         ### First Steps
-        - Once done, navigate to Authenticate and input your credentials
+        - Once done, navigate to Authenticate and input your credentials ( email address and apikey)
         - They will be saved only during a session
 
-        ### Project Creation:
+        ### Functionalities
 
-        - Just click on the menu item on the left to get more information
-
-        ### Weekly/Monthly Report Generation:
-
-        - Just click on the menu item on the left to get more information
+        - Just click on each item in the menu item on the left to get more information
 
         """
     )
