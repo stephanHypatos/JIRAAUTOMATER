@@ -28,6 +28,7 @@ JIRA_ADMIN_ROLE_ID='10002'
 JIRA_API_URL = "https://hypatos.atlassian.net/rest/api/2"
 JIRA_API_URL_V3 = "https://hypatos.atlassian.net/rest/api/3"
 
+EXCLUDED_BOARD_KEYS = {'CSLP','CSNEW','EM','ZZZ','SIM','BXIMH','DFM','SE','ROP','OKR', 'FIPR', 'REQMAN', 'MBZ', 'T3S', 'SKK', 'PMO', 'TESTC', 'DUR', 'PS', 'PE', 'TESTB', 'KATE', 'MDG', 'TESTA', 'UGI', 'TESTD', 'TOH', 'MON','DBFM'}
 # Assignable users in HY jira 
 ASSIGNABLE_USER_GROUP = 'CSR'
 # user who can be assigned as lead to a jira board

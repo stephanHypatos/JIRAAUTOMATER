@@ -29,18 +29,16 @@ def main():
     st.set_page_config(page_title="Create Space", page_icon="📖")
     st.title("Create Conf. Space | Copy Project Documentation Template to Conf. Space")
     with st.expander('Read the Docu'):
-        st.write(f'If you are here for the first time you might want to read the [documentation]({CREATE_SPACE_DOCU}).')
+        st.write(f'New here? You might want to read the [documentation]({CREATE_SPACE_DOCU}).')
     if st.session_state['api_password'] == '':
         st.warning("Please log in first.")
     else:
-
         copyflag = st.selectbox("Do you want to create a new space (Admins only) or only copy project docu template pages to an existing space?",
                                 ("project", "space"),
                                 index=None,
                                 placeholder="Select space or project...")
         
         if copyflag == 'project':
-            st.write(copyflag)
             project_type_key=st.selectbox("Select the project type:",("PoC", "Pilot", "Custom Demo"))
             space_key = st.text_input("Enter the key of the target Space (alpha-3)")
             # Check if the space key is valid
@@ -100,7 +98,7 @@ def main():
                         st.session_state['space_created'] = False
 
         else: 
-            st.warning('Please first answer the question.')
+            st.warning('Please select an option.')
 
 if __name__ == "__main__":
     main()

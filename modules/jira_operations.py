@@ -5,7 +5,7 @@ import math
 from datetime import datetime,timedelta
 from pptx import Presentation
 from pptx.util import Inches
-from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL,EXCEL_FILE_PATH,EXCEL_FILE_PATH_BLUE_PRINT_PILOT,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT,EXCEL_FILE_PATH_BLUE_PRINT_POC,EXCEL_FILE_PATH_BLUE_PRINT_TEST,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT_WIL,JIRA_TEMPLATE_BOARD_KEY#,JIRA_PROJECT,
+from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL,EXCEL_FILE_PATH,EXCEL_FILE_PATH_BLUE_PRINT_PILOT,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT,EXCEL_FILE_PATH_BLUE_PRINT_POC,EXCEL_FILE_PATH_BLUE_PRINT_TEST,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT_WIL,JIRA_TEMPLATE_BOARD_KEY,EXCLUDED_BOARD_KEYS
 from modules.utils import normalize_NaN, normalize_date, calculate_end_date
 
 
@@ -949,7 +949,7 @@ def get_company_managed_projects_df(jira_url, username, password):
     projects = jira.projects()
     
     # Filter and prepare the data for company-managed projects
-    excluded_keys = {'BXIMH','DFM','SE','ROP','OKR', 'FIPR', 'REQMAN', 'MBZ', 'T3S', 'SKK', 'PMO', 'TESTC', 'DUR', 'PS', 'PE', 'TESTB', 'KATE', 'MDG', 'TESTA', 'UGI', 'TESTD', 'TOH', 'MON','DBFM'}
+    excluded_keys = EXCLUDED_BOARD_KEYS
     data = [{'Key': project.key, 'Name': project.name} for project in projects if project.projectTypeKey == 'business' and project.key not in excluded_keys]
 
     # Create a DataFrame from the filtered data

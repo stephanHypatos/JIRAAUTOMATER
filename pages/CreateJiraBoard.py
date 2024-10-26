@@ -132,7 +132,7 @@ def main():
                             selected_user_account_ids = [user_options[user] for user in selected_users]
                             try:
                                 assign_users_to_role_of_jira_board(st.session_state['temp_jira_board_id'],selected_user_account_ids,jira_role_ids)
-                                st.success("Selected Users assigned to Board:", selected_user_account_ids)
+                                st.write("Selected Users assigned to Board:", selected_user_account_ids)
                             except Exception as e:
                                 st.warning(f'Error occured while assigne users to Board: {e}')
                             # Last Step add an issue Type Account to the created Jira Board
@@ -148,7 +148,7 @@ def main():
                             del st.session_state['jira_project_key']
         except Exception as e:
             st.error(f'Unable to connect to Atlassian: {e}. Ask the admin for more details.')
-             
+
 if __name__ == "__main__":
     main()
 
