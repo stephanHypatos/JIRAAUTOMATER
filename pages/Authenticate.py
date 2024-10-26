@@ -6,7 +6,7 @@ st.set_page_config(page_title="Authenticate", page_icon="🔐")
 st.sidebar.header("Authenticate")
 st.title("Authenticate 🤝")
 st.write(
-    'First thing to do is to provide your jira credentials. If you are here for the first time you might to read the [documentation](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/)')
+    'First thing to do is to provide your jira credentials. If you are here for the first time you might want to read the [documentation](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/)')
 
 # Initialize session state for JIRA API credentials if not already done
 if 'api_username' not in st.session_state:
@@ -17,11 +17,11 @@ if 'jira_project_key' not in st.session_state:
     st.session_state['jira_project_key'] = ''
 
 
-api_username = st.text_input("API Username", value=st.session_state['api_username'])
+api_username = st.text_input("UserName ( email address )", value=st.session_state['api_username'])
 api_password = st.text_input("API Password", type="password", value=st.session_state['api_password'])
 
 # Button to save credentials
-if st.button('Save Credentials'):
+if st.button('Save Session Credentials'):
     save_credentials(api_username, api_password)
 
 # Button to clear credentials from the session
