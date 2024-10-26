@@ -5,3 +5,7 @@ jira
 numpy
 python-dateutil
 openpyxl
+atlassian
+bs4
+requests
+json
