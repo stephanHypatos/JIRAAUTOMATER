@@ -131,7 +131,7 @@ def main():
                         selected_user_account_ids = [user_options[user] for user in selected_users]
                         try:
                             assign_users_to_role_of_jira_board(st.session_state['temp_jira_board_id'],selected_user_account_ids,jira_role_ids)
-                            st.write("Selected Users assigned to Board:", selected_user_account_ids)
+                            st.success("Selected Users assigned to Board:", selected_user_account_ids)
                         except Exception as e:
                             st.warning(f'Error occured while assigne users to Board: {e}')
                         # Last Step add an issue Type Account to the created Jira Board
@@ -139,7 +139,7 @@ def main():
                             issue_dict=create_jira_issue(project_name_raw, 'Account')
                             jira = JIRA(JIRA_URL, basic_auth=(st.session_state['api_username'], st.session_state['api_password']))
                             res = jira.create_issue(fields=issue_dict)
-                            st.write(f'New Issue Type "Account" {res} created.')
+                            st.success(f'New Issue Type "Account" {res} created.')
                         except Exception as e:
                             st.warning(f'Error occured while creating Issue Type "Account" on Board: {e}')
 
