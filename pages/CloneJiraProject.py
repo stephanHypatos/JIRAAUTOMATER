@@ -56,46 +56,40 @@ def main():
             parent_issue_key = st.selectbox("Select the issue type 'Account' to which your project should be attached:", parent_keys, index=0)
             save_jira_account_type_parent(parent_issue_key)
 
-        if st.button("Clone Project"):
+        if st.button("Clone Issues"):
             if source_issue_key and target_project and project_assignee and project_start_date:
-                with st.container(height=200):
-                    try:
-                        source_issue = jira.issue(source_issue_key)
-                        
-                        st.write(f"Cloning issue hierarchy starting from: {source_issue.key}")
-                        cloned_issues = {}
+                try:
+                    source_issue = jira.issue(source_issue_key)
+                    
+                    st.write(f"Cloning issue hierarchy starting from: {source_issue.key}")
+                    cloned_issues = {}
 
-                        # Step 1: Clone all issues without linked_issues
-                        st.write('Cloned Issue Delta Days: ',delta_days )
-                        clone_issue_recursive_first_pass(source_issue, target_project, cloned_issues=cloned_issues,day_delta=delta_days,project_assignee=project_assignee)
-                        
-                        # Step 2: After cloning all issues, add linked_issues
-                        st.success("All issues cloned. Now creating links between issues...")
+                    # Step 1: Clone all issues without linked_issues
+                    st.write('Cloned Issue Delta Days: ',delta_days )
+                    st.write(project_assignee)
+                    clone_issue_recursive_first_pass(source_issue, target_project, cloned_issues=cloned_issues,day_delta=delta_days,project_assignee=project_assignee)
+                    
+                    # Step 2: After cloning all issues, add linked_issues
+                    st.write("All issues cloned. Now creating links between issues...")
+                    add_issue_links(cloned_issues)
+                    
+                    # Step 3: Update the project name
+                    update_project_name(jira,cloned_issues[source_issue_key].key,st.session_state['new_project_name'])
+                    
+                    # Step 4: Update Parent Issue Type Account 
+                    if st.session_state['jira_issue_type_account'] != '' and st.session_state['jira_issue_type_account'] != 'No_Parent':
                         try:
-                            add_issue_links(cloned_issues)
+                            update_parent_key(jira,cloned_issues[source_issue_key].key, st.session_state['jira_issue_type_account'])
                         except Exception as e:
-                            st.error(f"An error occurred while adding Issue Links: {str(e)}")
+                            st.error(f"An error occurred: {str(e)}")        
 
-                        # Step 3: Update the project name
-                        try:
-                            update_project_name(jira,cloned_issues[source_issue_key].key,st.session_state['new_project_name'])
-                        except Exception as e:
-                            st.error(f"An error occurred updating the project name: {str(e)}")
+                    st.success(f"Project: {st.session_state['new_project_name']} Issue Key: {cloned_issues[source_issue_key].key} has been created and assigned to {project_assignee}.")
+                    
+                    # Step 5: clear the session state 
+                    st.session_state['new_project_name'] = ''
 
-                        # Step 4: Update Parent Issue Type Account 
-                        if st.session_state['jira_issue_type_account'] != '' and st.session_state['jira_issue_type_account'] != 'No_Parent':
-                            try:
-                                update_parent_key(jira,cloned_issues[source_issue_key].key, st.session_state['jira_issue_type_account'])
-                            except Exception as e:
-                                st.error(f"An error occurred: {str(e)}")        
-
-                        st.success(f"Project: {st.session_state['new_project_name']} Issue Key: {cloned_issues[source_issue_key].key} has been created and assigned to {project_assignee}.")
-                        
-                        # Step 5: clear the session state 
-                        st.session_state['new_project_name'] = ''
-
-                    except Exception as e:
-                        st.error(f"An error occurred: {str(e)}")
+                except Exception as e:
+                    st.error(f"An error occurred: {str(e)}")
             else:
                 st.warning("Please enter project startdate, source project name, target board key and project assignee")
 
