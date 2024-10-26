@@ -73,8 +73,11 @@ def add_row_to_confluence_table(confluence, page_id, table_index, row_data):
 
 # Function to get all existing Confluence space keys
 def get_existing_space_keys():
-    spaces = confluence.get_all_spaces()
-    return [space['key'] for space in spaces['results']]
+    try:
+        spaces = confluence.get_all_spaces()
+        return [space['key'] for space in spaces['results']]
+    except Exception as e:
+        st.error(f"Error getting existing space keys: {e}")  
 
 # Function to create a new space
 def create_new_space(space_name, space_key):
