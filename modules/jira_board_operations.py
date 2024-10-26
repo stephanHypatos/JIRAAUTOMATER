@@ -180,7 +180,7 @@ def assign_users_to_role_of_jira_board(projectIdOrKey, user_list, jira_roles):
             return
     return
 
-def create_jira_project(key, name, project_type, project_template,lead_account_id):
+def create_jira_board(key, name, project_type, project_template,lead_account_id):
     url = f"{JIRA_API_URL}/project"
     payload = json.dumps({
         

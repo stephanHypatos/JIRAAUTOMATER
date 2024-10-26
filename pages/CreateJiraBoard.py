@@ -3,9 +3,10 @@ from requests.auth import HTTPBasicAuth
 import json
 import streamlit as st
 from jira import JIRA
-from modules.config import JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID,LEAD_USER_MAPPING,TEMPLATE_MAPPING,ASSIGNABLE_USER_GROUP
+from modules.config import JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID,LEAD_USER_MAPPING,TEMPLATE_MAPPING,ASSIGNABLE_USER_GROUP,ADMINS,JIRA_URL
 from modules.confluence_operations import get_existing_space_keys
-from modules.jira_board_operations import check_project_name_exists,assign_project_workflow_scheme,assign_issue_type_scheme,assign_issue_type_screen_scheme,assign_users_to_role_of_jira_board,create_jira_project,get_assignable_users
+from modules.jira_operations import create_jira_issue,save_jira_project_key
+from modules.jira_board_operations import check_project_name_exists,assign_project_workflow_scheme,assign_issue_type_scheme,assign_issue_type_screen_scheme,assign_users_to_role_of_jira_board,create_jira_board,get_assignable_users
 
 # TO Do
 # Name validation 
@@ -23,30 +24,32 @@ from modules.jira_board_operations import check_project_name_exists,assign_proje
 # jira_board_Id="10249"
 # jira_board_key='BX'
 
-if 'api_username' not in st.session_state:
-    st.session_state['api_username'] = ''
-if 'api_password' not in st.session_state:
-    st.session_state['api_password'] = ''
-if 'jira_project_key' not in st.session_state:
-    st.session_state['jira_project_key'] = ''
-if 'temp_jira_board_key' not in st.session_state:
-    st.session_state['temp_jira_board_key'] = ''
-if 'temp_jira_board_id' not in st.session_state:
-    st.session_state['temp_jira_board_id'] = ''
-if 'selected_users' not in st.session_state:
-    st.session_state['selected_users'] = []
-
-
 def main():
+    if 'api_username' not in st.session_state:
+        st.session_state['api_username'] = ''
+    if 'api_password' not in st.session_state:
+        st.session_state['api_password'] = ''
+    if 'jira_project_key' not in st.session_state:
+        st.session_state['jira_project_key'] = ''
+    if 'temp_jira_board_key' not in st.session_state:
+        st.session_state['temp_jira_board_key'] = ''
+    if 'temp_jira_board_id' not in st.session_state:
+        st.session_state['temp_jira_board_id'] = ''
+    if 'selected_users' not in st.session_state:
+        st.session_state['selected_users'] = []
+
     st.set_page_config(page_title="Create Jira Board", page_icon="📋")
     st.title("Create Jira Board")
     if st.session_state['api_password'] == '':
             st.warning("Please log in first.")
+    elif st.session_state['api_username'] not in ADMINS:
+        st.warning(f"❌ Sorry, you dont have access to this page. Ask an admin (J.C or S.K.)")
+
     else:
         jira_role_ids = [JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID]
         
         # Get inputs from the user
-        lead_user = st.selectbox("Select Account Lead", ['jorge.costa','stephan.kuche','elena.kuhn','erik.roa','alex.menuet','yavuz.guney','michael.misterka','ekaterina.mironova'])
+        lead_user = st.selectbox("Select Account Lead", ['stephan.kuche','jorge.costa','elena.kuhn','erik.roa','alex.menuet','yavuz.guney','michael.misterka','ekaterina.mironova'])
         project_key = st.text_input("Enter Project Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
         
         existing_keys = get_existing_space_keys()
@@ -58,8 +61,8 @@ def main():
             st.error("The key must be alpha-3, and it must not already exist.")
 
         project_name_raw = st.text_input("Enter Client Name", placeholder='Happy Customer', help='Naming Convention: Try not to go for a too long version.')
+    
         # append Hypatos to create the new board name
-
         project_name = f"{project_name_raw} x Hypatos"
 
         if project_name and project_name_raw != '':
@@ -78,7 +81,7 @@ def main():
             # Create project button
             if st.button("Create Jira Board"):
                 if project_key and project_name:
-                    project_key_created=create_jira_project(
+                    project_key_created=create_jira_board(
                         key=project_key.upper(),
                         name=project_name,
                         project_type=project_type,
@@ -88,6 +91,7 @@ def main():
 
                     if project_key:
                         st.session_state['temp_jira_board_key'] = project_key_created['key']
+                        save_jira_project_key(st.session_state['temp_jira_board_key'])
                         st.session_state['temp_jira_board_id'] = project_key_created['id']
                         st.success(f"Project {project_name} created!")  
 
@@ -125,10 +129,22 @@ def main():
                     if submit_button:
                         st.session_state['selected_users'] = selected_users
                         selected_user_account_ids = [user_options[user] for user in selected_users]
-                        assign_users_to_role_of_jira_board(st.session_state['temp_jira_board_id'],selected_user_account_ids,jira_role_ids)
-                        st.write("Selected User Account IDs assigned to Board:", selected_user_account_ids)
-                        
+                        try:
+                            assign_users_to_role_of_jira_board(st.session_state['temp_jira_board_id'],selected_user_account_ids,jira_role_ids)
+                            st.write("Selected Users assigned to Board:", selected_user_account_ids)
+                        except Exception as e:
+                            st.warning(f'Error occured while assigne users to Board: {e}')
+                        # Last Step add an issue Type Account to the created Jira Board
+                        try:
+                            issue_dict=create_jira_issue(project_name_raw, 'Account')
+                            jira = JIRA(JIRA_URL, basic_auth=(st.session_state['api_username'], st.session_state['api_password']))
+                            res = jira.create_issue(fields=issue_dict)
+                            st.write(f'New Issue Type "Account" {res} created.')
+                        except Exception as e:
+                            st.warning(f'Error occured while creating Issue Type "Account" on Board: {e}')
+
                         del st.session_state['temp_jira_board_key']
+                        del st.session_state['jira_project_key']
             
 if __name__ == "__main__":
     main()
