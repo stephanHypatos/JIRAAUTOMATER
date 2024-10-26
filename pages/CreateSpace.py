@@ -26,6 +26,7 @@ confluence = Confluence(
 
 # Streamlit app
 def main():
+    st.set_page_config(page_title="Create Space", page_icon="📖")
     st.title("Create Conf. Space | Copy Project Documentation Template to Conf. Space")
     with st.expander('Read the Docu'):
         st.write(f'If you are here for the first time you might want to read the [documentation]({CREATE_SPACE_DOCU}).')
