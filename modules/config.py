@@ -22,6 +22,7 @@ JIRA_PROJECT_ISSUE_TYPE = 'Project'
 JIRA_EPIC_ISSUE_TYPE = 'Epic'
 JIRA_TASK_ISSUE_TYPE = 'Task'
 JIRA_SUBTASK_ISSUE_TYPE = 'Sub-task'
+# switch key if a new board is used as the template board
 JIRA_TEMPLATE_BOARD_KEY = 'TD'
 JIRA_DEV_ROLE_ID='10071'
 JIRA_ADMIN_ROLE_ID='10002'

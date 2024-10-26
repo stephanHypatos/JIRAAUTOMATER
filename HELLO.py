@@ -18,7 +18,7 @@ st.markdown(
     [Want to learn more?]({HYPA_PMO_DOCU})
     """
 )   
-with st.expander('Key functionalities of the current version'):
+with st.expander('Key functionalities of the current version: 1.1.9 (2024-10-20)'):
     st.markdown(
         """ 
         ### Project Creation:
@@ -48,14 +48,24 @@ with st.expander('Key functionalities of the current version'):
         ### Find Missing POs
         - A bit offtopic -> Debug PO Line Matching Enrichment
         
+        ### Create Jira Board
+        - create a new Jira company managed board for a customer
+        - assing users to the newly created board
+
         ### Create Space
         - create a new space for customer including documentaiton
         - copy template page to an already existing customer confluence space
         
+        ### Clone Jira Project ( Admins only - still in beta)
+        - clone an issue type "project" from a given Jira Board to a given Jira Board
+        - presere the original issue hierarchy and issue links 
+        - auto adjusts dates based on a selected project start date
+        - assign the cloned issues to a designated user
+        - select a name for the new project 
+
         ### Upcoming features
                     
-        - Create your own Blueprint Project and clone a new project from your blueprint
-        - Monthly Steer Co Report Generation:
+        - Monthly Steer Co Report Generation
         - Sharepoint Connection in order to make downloading and uploading of slidedecks unnecessary
         
         """
