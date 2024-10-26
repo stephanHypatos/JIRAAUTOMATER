@@ -68,7 +68,7 @@ def add_row_to_confluence_table(confluence, page_id, table_index, row_data):
     if not update_response:
         raise Exception(f"Failed to update the page content for page ID: {page_id}")
     
-    st.write("Page updated successfully")
+    st.write("Added new row to customer's table.")
     return update_response
 
 # Function to get all existing Confluence space keys
@@ -98,7 +98,7 @@ def copy_child_pages(source_page_id, target_space_key, target_parent_id=None,pro
     try:
         # Get all child pages of the source page
         child_pages = get_child_pages(source_page_id)
-
+        
         for child_page in child_pages:
             # Get the content of the child page
             page_content = confluence.get_page_by_id(child_page['id'], expand='body.storage')
