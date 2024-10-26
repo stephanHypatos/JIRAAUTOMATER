@@ -23,10 +23,10 @@ with st.expander('Key functionalities of the current version'):
         """ 
         ### Project Creation:
 
-        - It enables the establishment of projects within Jira, incorporating a structured hierarchy that spans accounts, projects, epics, tasks, and sub-tasks.
+        - Create a new project (PoC, PILOT, Custom Demo) in a given JiraBoard, incorporating a structured hierarchy that spans accounts, projects, epics, tasks, and sub-tasks.
         - The app supports the delineation of issue dependencies, allowing for the specification of relationships such as "blocks" and "is blocked by".
         - It offers the capability to calculate the start and end dates of tasks, based on the specified duration for each issue type.
-        - You can provide the name of the project if you dont provide one the name of the newly created project will be the selected project type
+        - You can provide a name of for your project (default name: the selected "project type")
 
         ### Weekly Report Generation:
 
@@ -42,7 +42,7 @@ with st.expander('Key functionalities of the current version'):
         ### Display Boards
         - display all Company Managed Jira Boards 
 
-        ### Update the Timeline 
+        ### Get Timeline 
         - Get an updated version of your GANTT CHART THINK CELL Timeline of a Project in a given JIRA Board
 
         ### Find Missing POs
@@ -55,7 +55,7 @@ with st.expander('Key functionalities of the current version'):
         ### Upcoming features
                     
         - Create your own Blueprint Project and clone a new project from your blueprint
-        -  Monthly Steer Co Report Generation:
+        - Monthly Steer Co Report Generation:
         - Sharepoint Connection in order to make downloading and uploading of slidedecks unnecessary
         
         """
@@ -68,11 +68,12 @@ with st.expander('Documentation'):
 
         ### First Steps
         - Once done, navigate to Authenticate and input your credentials ( email address and apikey)
-        - They will be saved only during a session
+        - They will be saved only during your active session.
+        - Using more than one tab in one session won't work.
 
         ### Functionalities
 
-        - Just click on each item in the menu item on the left to get more information
+        - Just click on each item in the menu on the left.
 
         """
     )
