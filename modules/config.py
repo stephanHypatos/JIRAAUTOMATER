@@ -32,3 +32,4 @@ TABLE_INDEX = 0
 
 # Documenation Links
 CREATE_SPACE_DOCU = 'https://hypatos.atlassian.net/wiki/spaces/PD/pages/1289814125/Confluence+Customer+Space+Creation'
+HYPA_PMO_DOCU = 'https://hypatos.atlassian.net/wiki/spaces/PD/pages/1115947248/Project+Management+Playbook+HYPA+PMO'

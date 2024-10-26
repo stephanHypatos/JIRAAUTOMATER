@@ -1,4 +1,5 @@
 import streamlit as st
+from modules.config import HYPA_PMO_DOCU
 
 st.set_page_config(
     page_title="About",
@@ -10,11 +11,11 @@ st.write("# Welcome to Hypa PMO! 👋")
 st.sidebar.success("Select a functionality.")
 
 st.markdown(
-    """
+    f"""
     Meet *Hypa PMO*: The HY app engineered to supercharge your project management workflow! 
-    Wave goodbye to the drudgery of repetitive tasks, from launching new projects to generating those weekly status updates. 
+    Wave goodbye to repetitive tasks, from launching new projects, generating weekly status updates to Jira Board Creations. 
     Hypa PMO is here to automate the tedious, freeing you to tackle the bigger picture.
-    [Want to learn more?](https://hypatos.atlassian.net/wiki/spaces/PD/pages/1115947248/Project+Management+-+HYPA+PMO)
+    [Want to learn more?]({HYPA_PMO_DOCU})
     """
 )   
 with st.expander('Key functionalities of the current version'):
@@ -46,6 +47,10 @@ with st.expander('Key functionalities of the current version'):
 
         ### Find Missing POs
         - A bit offtopic -> Debug PO Line Matching Enrichment
+        
+        ### Create Space
+        - create a new space for customer including documentaiton
+        - copy template page to an already existing customer confluence space
         
         ### Upcoming features
                     

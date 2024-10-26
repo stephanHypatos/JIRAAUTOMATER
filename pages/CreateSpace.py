@@ -87,7 +87,7 @@ def main():
                     st.session_state['space_created'] = False
                     
                     # Add a row to the Confluence table in the CS Space  
-                    new_row_data = [space_name, f'[{st.session_state['new_space_key']}]', "ONBOARDING","",f"https://hypatos.atlassian.net/wiki/spaces/{space_key}/overview", "N/A","ENTERPRISE"]
+                    new_row_data = [space_name, f"[{st.session_state['new_space_key']}]", "ONBOARDING","",f"https://hypatos.atlassian.net/wiki/spaces/{space_key}/overview", "N/A","ENTERPRISE"]
                     add_row_to_confluence_table(confluence,PAGE_ID, TABLE_INDEX, new_row_data)    
 
                 except Exception as e:
