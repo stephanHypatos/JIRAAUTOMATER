@@ -5,7 +5,7 @@ import math
 from datetime import datetime,timedelta
 from pptx import Presentation
 from pptx.util import Inches
-from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL,EXCEL_FILE_PATH,EXCEL_FILE_PATH_BLUE_PRINT_PILOT,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT,EXCEL_FILE_PATH_BLUE_PRINT_POC,EXCEL_FILE_PATH_BLUE_PRINT_TEST,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT_WIL#,JIRA_PROJECT,
+from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL,EXCEL_FILE_PATH,EXCEL_FILE_PATH_BLUE_PRINT_PILOT,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT,EXCEL_FILE_PATH_BLUE_PRINT_POC,EXCEL_FILE_PATH_BLUE_PRINT_TEST,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT_WIL,JIRA_TEMPLATE_BOARD_KEY#,JIRA_PROJECT,
 from modules.utils import normalize_NaN, normalize_date, calculate_end_date
 
 
@@ -22,7 +22,15 @@ def save_credentials(username, password):
 
 
 # JIRA Project relelated Functions
-        
+
+# Function to update the parent issue key of a given issue
+def update_parent_key(jira,issue_key, new_parent_key):
+    # Get the issue object for the given issue key
+    issue = jira.issue(issue_key)
+    # Update the parent field with the new parent issue key
+    issue.update(fields={'parent': {'key': new_parent_key}})
+    st.write(f"Parent key of issue {issue_key} updated to {new_parent_key}")
+
 # Function to store jira project key in session state
 def save_jira_project_key(projektkey):
     st.session_state['jira_project_key'] = projektkey
@@ -101,6 +109,29 @@ def get_jira_issue_type_project_key(jira_url, username, password):
     select_options = [" "]
     select_options.extend(project_keys)
     return select_options
+
+# Function returns a list of JIRA Project Templates from the Template Board
+def get_jira_issue_type_project_key_with_displayname(jira):
+    # the jira board key of the template board
+    project_key = JIRA_TEMPLATE_BOARD_KEY
+    query = f'project="{project_key}" AND issuetype="Project"'
+    project_issue_keys = jira.search_issues(query, maxResults=10)
+    project_keys= [{'key': issue.key, 'summary': issue.fields.summary}for issue in project_issue_keys]
+    return project_keys
+
+def display_issue_summaries(issue_list):
+    # Extract summaries for display in the selectbox
+    issue_summaries = [issue['summary'] for issue in issue_list]
+    
+    # Display the selectbox with summaries
+    selected_summary = st.selectbox("Select Template", issue_summaries)
+
+    # Find the issue with the selected summary
+    selected_issue = next(issue for issue in issue_list if issue['summary'] == selected_summary)
+    
+    # Pass the key of the selected issue to another function
+    
+    return selected_issue['key']
 
 
 # get all child issues of a jira issue

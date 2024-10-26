@@ -24,7 +24,7 @@ confluence = Confluence(
     password=CONFLUENCE_TOKEN
 )
 
-# Streamlit app
+# Streamlit Page
 def main():
     st.set_page_config(page_title="Create Space", page_icon="📖")
     st.title("Create Conf. Space | Copy Project Documentation Template to Conf. Space")
