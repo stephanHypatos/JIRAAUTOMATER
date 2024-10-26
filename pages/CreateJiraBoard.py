@@ -46,106 +46,109 @@ def main():
         st.warning(f"❌ Sorry, you dont have access to this page. Ask an admin (J.C or S.K.)")
 
     else:
-        jira_role_ids = [JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID]
-        
-        # Get inputs from the user
-        lead_user = st.selectbox("Select Account Lead", ['stephan.kuche','jorge.costa','elena.kuhn','erik.roa','alex.menuet','yavuz.guney','michael.misterka','ekaterina.mironova'])
-        project_key = st.text_input("Enter Project Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
-        
-        existing_keys = get_existing_space_keys()
-
-        # Check if the space key is valid
-        if project_key and len(project_key) == 3 and project_key.isalpha() and project_key not in existing_keys:
-            st.success(f"The key '{project_key}' is valid and available.",icon="✅")
-        elif project_key:
-            st.error("The key must be alpha-3, and it must not already exist.")
-
-        project_name_raw = st.text_input("Enter Client Name", placeholder='Happy Customer', help='Naming Convention: Try not to go for a too long version.')
-    
-        # append Hypatos to create the new board name
-        project_name = f"{project_name_raw} x Hypatos"
-
-        if project_name and project_name_raw != '':
-            try:
-                check_project_name_exists(project_name)
-            except ValueError as e:
-                st.error(str(e))
-        
-            project_type = "business" #currently not in use: project_type = st.selectbox("Select Project Type", ["business", "software", "service_desk"])
-            lead_user_mapping = LEAD_USER_MAPPING
-
-            # Define default templates for each project type
-            template_mapping = TEMPLATE_MAPPING
-
-            project_key_created = None
-            # Create project button
-            if st.button("Create Jira Board"):
-                if project_key and project_name:
-                    project_key_created=create_jira_board(
-                        key=project_key.upper(),
-                        name=project_name,
-                        project_type=project_type,
-                        project_template=template_mapping[project_type],
-                        lead_account_id=lead_user_mapping[lead_user]
-                    )
-
-                    if project_key:
-                        st.session_state['temp_jira_board_key'] = project_key_created['key']
-                        save_jira_project_key(st.session_state['temp_jira_board_key'])
-                        st.session_state['temp_jira_board_id'] = project_key_created['id']
-                        st.success(f"Project {project_name} created!")  
-
-                        # assign Workflowschemes
-                        assign_project_workflow_scheme(st.session_state['temp_jira_board_id'])
-                        assign_issue_type_screen_scheme(st.session_state['temp_jira_board_id'])
-                        assign_issue_type_scheme(st.session_state['temp_jira_board_id'])
-                        
-                else:
-                    st.error("Please fill all the fields.")
-
-            # If project is created, show a form to select users
-            if st.session_state['temp_jira_board_key'] != '' :
-                
-                st.subheader("Assign Users to Project")
-
-                # Create a form for user selection
-                with st.form("user_selection_form"):
-                    users = get_assignable_users(ASSIGNABLE_USER_GROUP)
-
-                    # Prepare user options for multiselect
-                    user_options = {user['displayName']: user['accountId'] for user in users}
-                    user_names = list(user_options.keys())
-                    
-                    # Initialize session state for selected users if not already
-                    if 'selected_users' not in st.session_state:
-                        st.session_state['selected_users'] = []
-
-                    # Display multiselect widget for user selection inside the form
-                    selected_users = st.multiselect("Select one or more users", user_names, default=st.session_state['selected_users'])
-
-                    # Submit button inside the form
-                    submit_button = st.form_submit_button("Submit Selection")
-
-                    if submit_button:
-                        st.session_state['selected_users'] = selected_users
-                        selected_user_account_ids = [user_options[user] for user in selected_users]
-                        try:
-                            assign_users_to_role_of_jira_board(st.session_state['temp_jira_board_id'],selected_user_account_ids,jira_role_ids)
-                            st.success("Selected Users assigned to Board:", selected_user_account_ids)
-                        except Exception as e:
-                            st.warning(f'Error occured while assigne users to Board: {e}')
-                        # Last Step add an issue Type Account to the created Jira Board
-                        try:
-                            issue_dict=create_jira_issue(project_name_raw, 'Account')
-                            jira = JIRA(JIRA_URL, basic_auth=(st.session_state['api_username'], st.session_state['api_password']))
-                            res = jira.create_issue(fields=issue_dict)
-                            st.success(f'New Issue Type "Account" {res} created.')
-                        except Exception as e:
-                            st.warning(f'Error occured while creating Issue Type "Account" on Board: {e}')
-
-                        del st.session_state['temp_jira_board_key']
-                        del st.session_state['jira_project_key']
+        try:
+            jira_role_ids = [JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID]
             
+            # Get inputs from the user
+            lead_user = st.selectbox("Select Account Lead", ['stephan.kuche','jorge.costa','elena.kuhn','erik.roa','alex.menuet','yavuz.guney','michael.misterka','ekaterina.mironova'])
+            project_key = st.text_input("Enter Project Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
+            
+            existing_keys = get_existing_space_keys()
+
+            # Check if the space key is valid
+            if project_key and len(project_key) == 3 and project_key.isalpha() and project_key not in existing_keys:
+                st.success(f"The key '{project_key}' is valid and available.",icon="✅")
+            elif project_key:
+                st.error("The key must be alpha-3, and it must not already exist.")
+
+            project_name_raw = st.text_input("Enter Client Name", placeholder='Happy Customer', help='Naming Convention: Try not to go for a too long version.')
+        
+            # append Hypatos to create the new board name
+            project_name = f"{project_name_raw} x Hypatos"
+
+            if project_name and project_name_raw != '':
+                try:
+                    check_project_name_exists(project_name)
+                except ValueError as e:
+                    st.error(str(e))
+            
+                project_type = "business" #currently not in use: project_type = st.selectbox("Select Project Type", ["business", "software", "service_desk"])
+                lead_user_mapping = LEAD_USER_MAPPING
+
+                # Define default templates for each project type
+                template_mapping = TEMPLATE_MAPPING
+
+                project_key_created = None
+                # Create project button
+                if st.button("Create Jira Board"):
+                    if project_key and project_name:
+                        project_key_created=create_jira_board(
+                            key=project_key.upper(),
+                            name=project_name,
+                            project_type=project_type,
+                            project_template=template_mapping[project_type],
+                            lead_account_id=lead_user_mapping[lead_user]
+                        )
+
+                        if project_key:
+                            st.session_state['temp_jira_board_key'] = project_key_created['key']
+                            save_jira_project_key(st.session_state['temp_jira_board_key'])
+                            st.session_state['temp_jira_board_id'] = project_key_created['id']
+                            st.success(f"Project {project_name} created!")  
+
+                            # assign Workflowschemes
+                            assign_project_workflow_scheme(st.session_state['temp_jira_board_id'])
+                            assign_issue_type_screen_scheme(st.session_state['temp_jira_board_id'])
+                            assign_issue_type_scheme(st.session_state['temp_jira_board_id'])
+                            
+                    else:
+                        st.error("Please fill all the fields.")
+
+                # If project is created, show a form to select users
+                if st.session_state['temp_jira_board_key'] != '' :
+                    
+                    st.subheader("Assign Users to Project")
+
+                    # Create a form for user selection
+                    with st.form("user_selection_form"):
+                        users = get_assignable_users(ASSIGNABLE_USER_GROUP)
+
+                        # Prepare user options for multiselect
+                        user_options = {user['displayName']: user['accountId'] for user in users}
+                        user_names = list(user_options.keys())
+                        
+                        # Initialize session state for selected users if not already
+                        if 'selected_users' not in st.session_state:
+                            st.session_state['selected_users'] = []
+
+                        # Display multiselect widget for user selection inside the form
+                        selected_users = st.multiselect("Select one or more users", user_names, default=st.session_state['selected_users'])
+
+                        # Submit button inside the form
+                        submit_button = st.form_submit_button("Submit Selection")
+
+                        if submit_button:
+                            st.session_state['selected_users'] = selected_users
+                            selected_user_account_ids = [user_options[user] for user in selected_users]
+                            try:
+                                assign_users_to_role_of_jira_board(st.session_state['temp_jira_board_id'],selected_user_account_ids,jira_role_ids)
+                                st.success("Selected Users assigned to Board:", selected_user_account_ids)
+                            except Exception as e:
+                                st.warning(f'Error occured while assigne users to Board: {e}')
+                            # Last Step add an issue Type Account to the created Jira Board
+                            try:
+                                issue_dict=create_jira_issue(project_name_raw, 'Account')
+                                jira = JIRA(JIRA_URL, basic_auth=(st.session_state['api_username'], st.session_state['api_password']))
+                                res = jira.create_issue(fields=issue_dict)
+                                st.success(f'New Issue Type "Account" {res} created.')
+                            except Exception as e:
+                                st.warning(f'Error occured while creating Issue Type "Account" on Board: {e}')
+
+                            del st.session_state['temp_jira_board_key']
+                            del st.session_state['jira_project_key']
+        except Exception as e:
+            st.error(f'Unable to connect to Atlassian: {e}. Ask the admin for more details.')
+             
 if __name__ == "__main__":
     main()
 
