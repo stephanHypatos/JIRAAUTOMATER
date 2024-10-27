@@ -1,5 +1,5 @@
-import requests
 from requests.auth import HTTPBasicAuth
+from atlassian import Confluence
 import json
 import streamlit as st
 from jira import JIRA
@@ -25,6 +25,7 @@ from modules.jira_board_operations import check_project_name_exists,assign_proje
 # jira_board_key='BX'
 
 def main():
+
     if 'api_username' not in st.session_state:
         st.session_state['api_username'] = ''
     if 'api_password' not in st.session_state:
@@ -40,6 +41,7 @@ def main():
 
     st.set_page_config(page_title="Create Jira Board", page_icon="📋")
     st.title("Create Jira Board")
+
     if st.session_state['api_password'] == '':
             st.warning("Please log in first.")
     elif st.session_state['api_username'] not in ADMINS:
@@ -48,12 +50,16 @@ def main():
     else:
         try:
             jira_role_ids = [JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID]
-            
+            confluence = Confluence(
+                url=JIRA_URL,
+                username=st.session_state['api_username'],
+                password=st.session_state['api_password']
+            )
             # Get inputs from the user
             lead_user = st.selectbox("Select Account Lead", ['stephan.kuche','jorge.costa','elena.kuhn','erik.roa','alex.menuet','yavuz.guney','michael.misterka','ekaterina.mironova'])
             project_key = st.text_input("Enter Project Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
             
-            existing_keys = get_existing_space_keys()
+            existing_keys = get_existing_space_keys(confluence)
 
             # Check if the space key is valid
             if project_key and len(project_key) == 3 and project_key.isalpha() and project_key not in existing_keys:

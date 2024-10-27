@@ -5,15 +5,21 @@ from bs4 import BeautifulSoup
 
 
 # Initialize Confluence API connection (replace these variables with your credentials)
-CONFLUENCE_URL = JIRA_URL
-CONFLUENCE_TOKEN= st.session_state['api_password']
-CONFLUENCE_USERNAME = st.session_state['api_username']
+# CONFLUENCE_URL = JIRA_URL
+# CONFLUENCE_TOKEN= st.session_state['api_password']
+# CONFLUENCE_USERNAME = st.session_state['api_username']
 
-confluence = Confluence(
-    url=CONFLUENCE_URL,
-    username=CONFLUENCE_USERNAME,
-    password=CONFLUENCE_TOKEN
-)
+# confluence = Confluence(
+#     url=CONFLUENCE_URL,
+#     username=CONFLUENCE_USERNAME,
+#     password=CONFLUENCE_TOKEN
+# )
+
+# confluence = Confluence(
+#     url=JIRA_URL,
+#     username=st.session_state['api_username'],
+#     password=st.session_state['api_password']
+# )
 
 def add_row_to_confluence_table(confluence, page_id, table_index, row_data):
     """
@@ -72,7 +78,7 @@ def add_row_to_confluence_table(confluence, page_id, table_index, row_data):
     return update_response
 
 # Function to get all existing Confluence space keys
-def get_existing_space_keys():
+def get_existing_space_keys(confluence):
     try:
         spaces = confluence.get_all_spaces()
         return [space['key'] for space in spaces['results']]
@@ -80,12 +86,12 @@ def get_existing_space_keys():
         st.error(f"Error getting existing space keys: {e}")  
 
 # Function to create a new space
-def create_new_space(space_name, space_key):
+def create_new_space(confluence,space_name, space_key):
     response = confluence.create_space(space_key, space_name)  # Only 2 arguments needed
     return response
 
 # Function to check if a page with the same title exists in the target space
-def page_exists(space_key, page_title):
+def page_exists(confluence,space_key, page_title):
     pages = confluence.get_all_pages_from_space('OLL')
     for page in pages:
         if page['title'] == page_title:
@@ -93,11 +99,11 @@ def page_exists(space_key, page_title):
     return False
 
 # Function to get child pages of a specific page
-def get_child_pages(parent_page_id):
+def get_child_pages(confluence,parent_page_id):
     return confluence.get_child_pages(parent_page_id)
 
 # Function to copy child pages while maintaining hierarchy (skips the first page)
-def copy_child_pages(source_page_id, target_space_key, target_parent_id=None,project_type_key='default'):
+def copy_child_pages(confluence,source_page_id, target_space_key, target_parent_id=None,project_type_key='default'):
     try:
         # Get all child pages of the source page
         child_pages = get_child_pages(source_page_id)
@@ -139,13 +145,13 @@ def copy_child_pages(source_page_id, target_space_key, target_parent_id=None,pro
             st.success(f"Created page: '{new_page_title}' in space '{target_space_key}'.")
 
             # Recursively copy the child pages of the current page
-            copy_child_pages(child_page['id'], target_space_key, new_page['id'],project_type_key=project_type_key)
+            copy_child_pages(confluence,child_page['id'], target_space_key, new_page['id'],project_type_key=project_type_key)
 
     except Exception as e:
         st.error(f"Error copying pages: {e}")
 
 # Function to initiate copyingall pages from one space to another, skipping the first page ( which is the space page )
-def copy_pages_from_space(source_space_key, target_space_key,project_type_key,copyflag='space'):
+def copy_pages_from_space(confluence,source_space_key, target_space_key,project_type_key,copyflag='space'):
     try:
         # Get the home page of the source space
         space = confluence.get_space(source_space_key, expand='homepage')

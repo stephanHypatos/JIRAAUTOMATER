@@ -1,10 +1,10 @@
 import requests
 from requests.auth import HTTPBasicAuth
+from atlassian import Confluence
 import json
 import streamlit as st
 from jira import JIRA
 from modules.config import JIRA_URL,JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID,JIRA_API_URL,JIRA_API_URL_V3
-from modules.confluence_operations import get_existing_space_keys
 
 ## credentials for JIRA library
 # Jira connection setup
@@ -12,7 +12,6 @@ jira_url = JIRA_URL
 jira_username = st.session_state['api_username']
 jira_api_token = st.session_state['api_password']
 jira = JIRA(server=jira_url, basic_auth=(jira_username, jira_api_token))
-
 
 # Jira Auth configuration
 auth = HTTPBasicAuth(st.session_state['api_username'], st.session_state['api_password'])
