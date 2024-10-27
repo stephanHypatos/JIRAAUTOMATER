@@ -54,6 +54,7 @@ def main():
                 username=st.session_state['api_username'],
                 password=st.session_state['api_password']
             )
+            
             # Get inputs from the user
             lead_user = st.selectbox("Select Account Lead", ['stephan.kuche','jorge.costa','elena.kuhn','erik.roa','alex.menuet','yavuz.guney','michael.misterka','ekaterina.mironova'])
             project_key = st.text_input("Enter Project Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
