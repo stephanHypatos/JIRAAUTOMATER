@@ -50,12 +50,14 @@ TEMPLATE_MAPPING = {
             'service_desk': 'com.atlassian.servicedesk:itil-v2-service-desk-project'
         }
 
-# Confluence URLs
-TEMPLATE_SPACE_KEY = 'TESTCUST'
-    # Page ID of the Confluence page to update customer success page 
+# Confluence VARS
+TEMPLATE_SPACE_KEY = 'TESTCUST' # space key where the template documentation is stored
+# Page ID of the Confluence page (projects -customers) to update in the customer success space 
 PAGE_ID = "607224585"  # ID of the page
-    # Index of the table on the page (0 if it's the first table)
+# Index of the table on the page (0 if it's the first table)
 TABLE_INDEX = 0
+# page id of the the projects page in the TESTCUS space
+HP_ID_TCUS_SPACE='1290109126' 
 
 # Documenation Links
 CREATE_SPACE_DOCU = 'https://hypatos.atlassian.net/wiki/spaces/PD/pages/1289814125/Confluence+Customer+Space+Creation'

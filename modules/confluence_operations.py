@@ -1,25 +1,7 @@
 from atlassian import Confluence
-from modules.config import JIRA_URL
 import streamlit as st
 from bs4 import BeautifulSoup
-
-
-# Initialize Confluence API connection (replace these variables with your credentials)
-# CONFLUENCE_URL = JIRA_URL
-# CONFLUENCE_TOKEN= st.session_state['api_password']
-# CONFLUENCE_USERNAME = st.session_state['api_username']
-
-# confluence = Confluence(
-#     url=CONFLUENCE_URL,
-#     username=CONFLUENCE_USERNAME,
-#     password=CONFLUENCE_TOKEN
-# )
-
-# confluence = Confluence(
-#     url=JIRA_URL,
-#     username=st.session_state['api_username'],
-#     password=st.session_state['api_password']
-# )
+from modules.config import HP_ID_TCUS_SPACE
 
 def add_row_to_confluence_table(confluence, page_id, table_index, row_data):
     """
@@ -92,7 +74,7 @@ def create_new_space(confluence,space_name, space_key):
 
 # Function to check if a page with the same title exists in the target space
 def page_exists(confluence,space_key, page_title):
-    pages = confluence.get_all_pages_from_space('OLL')
+    pages = confluence.get_all_pages_from_space(space_key)
     for page in pages:
         if page['title'] == page_title:
             return True
@@ -106,14 +88,14 @@ def get_child_pages(confluence,parent_page_id):
 def copy_child_pages(confluence,source_page_id, target_space_key, target_parent_id=None,project_type_key='default'):
     try:
         # Get all child pages of the source page
-        child_pages = get_child_pages(source_page_id)
-        
+        child_pages = get_child_pages(confluence,source_page_id)
+
         for child_page in child_pages:
             # Get the content of the child page
             page_content = confluence.get_page_by_id(child_page['id'], expand='body.storage')
             page_title = page_content['title']
             page_body = page_content['body']['storage']['value']
-
+            
             # Initialize the new page title
             new_page_title = page_title
 
@@ -122,27 +104,28 @@ def copy_child_pages(confluence,source_page_id, target_space_key, target_parent_
                 '[*CUS*]': f'[{target_space_key}]',
                 '[*PROJECTTYPE*]': project_type_key
             }
-
+            
             # Perform the replacements
             for placeholder, replacement in replacements.items():
                 if placeholder in new_page_title:
                     new_page_title = new_page_title.replace(placeholder, replacement)
 
-
-
             # Check if the page already exists in the target space
-            if page_exists(target_space_key, new_page_title):
+            if page_exists(confluence,target_space_key, new_page_title):
                 st.warning(f"Page '{new_page_title}' already exists in space '{target_space_key}'. Skipping creation.")
                 continue
 
-            # Create the page in the target space
-            new_page = confluence.create_page(
-                space=target_space_key,
-                title=new_page_title,
-                body=page_body,
-                parent_id=target_parent_id
-            )
-            st.success(f"Created page: '{new_page_title}' in space '{target_space_key}'.")
+            try:
+                new_page = confluence.create_page(
+                    space=target_space_key,
+                    title=new_page_title,
+                    body=page_body,
+                    parent_id=target_parent_id
+                )
+                st.success(f"Created page: '{new_page_title}' in space '{target_space_key}'.")
+            
+            except Exception as e:
+                st.error(f"An unexpected error occurred while creating the new page: {e}")
 
             # Recursively copy the child pages of the current page
             copy_child_pages(confluence,child_page['id'], target_space_key, new_page['id'],project_type_key=project_type_key)
@@ -158,10 +141,10 @@ def copy_pages_from_space(confluence,source_space_key, target_space_key,project_
         home_page_id = space['homepage']['id']
         
         if copyflag == 'project':
-            home_page_id = '1290109126' # page id of the the projects page in the TESTCUS space
+            home_page_id = HP_ID_TCUS_SPACE
         
         # Start copying child pages of the home page
-        copy_child_pages(home_page_id, target_space_key,project_type_key=project_type_key)
+        copy_child_pages(confluence,home_page_id, target_space_key,project_type_key=project_type_key)
         st.success(f"All template pages for project type: {project_type_key} copied to the space: {target_space_key}",icon="✅")
     except Exception as e:
         st.error(f"Error copying pages from space: {e}")

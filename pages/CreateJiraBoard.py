@@ -23,21 +23,20 @@ from modules.jira_board_operations import check_project_name_exists,assign_proje
 
 # jira_board_Id="10249"
 # jira_board_key='BX'
-
-def main():
-
-    if 'api_username' not in st.session_state:
+if 'api_username' not in st.session_state:
         st.session_state['api_username'] = ''
-    if 'api_password' not in st.session_state:
-        st.session_state['api_password'] = ''
-    if 'jira_project_key' not in st.session_state:
-        st.session_state['jira_project_key'] = ''
-    if 'temp_jira_board_key' not in st.session_state:
-        st.session_state['temp_jira_board_key'] = ''
-    if 'temp_jira_board_id' not in st.session_state:
-        st.session_state['temp_jira_board_id'] = ''
-    if 'selected_users' not in st.session_state:
-        st.session_state['selected_users'] = []
+if 'api_password' not in st.session_state:
+    st.session_state['api_password'] = ''
+if 'jira_project_key' not in st.session_state:
+    st.session_state['jira_project_key'] = ''
+if 'temp_jira_board_key' not in st.session_state:
+    st.session_state['temp_jira_board_key'] = ''
+if 'temp_jira_board_id' not in st.session_state:
+    st.session_state['temp_jira_board_id'] = ''
+if 'selected_users' not in st.session_state:
+    st.session_state['selected_users'] = []
+        
+def main():
 
     st.set_page_config(page_title="Create Jira Board", page_icon="📋")
     st.title("Create Jira Board")

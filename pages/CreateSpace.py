@@ -3,7 +3,8 @@ from atlassian import Confluence
 from modules.config import JIRA_URL,CREATE_SPACE_DOCU,TABLE_INDEX,PAGE_ID,TEMPLATE_SPACE_KEY
 from modules.confluence_operations import get_existing_space_keys,create_new_space,add_row_to_confluence_table,copy_pages_from_space 
 
-## Auth 
+
+## Session States 
 
 if 'api_username' not in st.session_state:
      st.session_state['api_username']= ''
@@ -14,18 +15,9 @@ if 'space_created' not in st.session_state:
 if 'new_space_key' not in st.session_state:
     st.session_state['new_space_key'] = ''
 
-CONFLUENCE_URL=JIRA_URL
-CONFLUENCE_TOKEN=st.session_state['api_password']
-CONFLUENCE_USERNAME =st.session_state['api_username']
-
-confluence = Confluence(
-    url=CONFLUENCE_URL,
-    username=CONFLUENCE_USERNAME,
-    password=CONFLUENCE_TOKEN
-)
-
 # Streamlit Page
 def main():
+    
     st.set_page_config(page_title="Create Space", page_icon="📖")
     st.title("Create Conf. Space | Copy Project Documentation Template to Conf. Space")
     with st.expander('Read the Docu'):
@@ -33,6 +25,13 @@ def main():
     if st.session_state['api_password'] == '':
         st.warning("Please log in first.")
     else:
+        # Initialize Confluence API connection 
+        confluence = Confluence(
+                url=JIRA_URL,
+                username=st.session_state['api_username'],
+                password=st.session_state['api_password']
+            )
+        
         copyflag = st.selectbox("Do you want to create a new space (Admins only) or only copy project docu template pages to an existing space?",
                                 ("project", "space"),
                                 index=None,
@@ -50,7 +49,12 @@ def main():
             if st.button(f"Copy template pages for a {project_type_key} project to the space: {space_key}."):
                 with st.container(height=300):
                     try:            
-                        copy_pages_from_space(TEMPLATE_SPACE_KEY,space_key,project_type_key,copyflag=copyflag)
+                        copy_pages_from_space(
+                            confluence,
+                            TEMPLATE_SPACE_KEY,
+                            space_key,
+                            project_type_key,
+                            copyflag=copyflag)
                     except Exception as e:
                         st.error(e)
                         st.session_state['space_created']= ''                             
@@ -63,7 +67,7 @@ def main():
             # Step 3: User input for the project type
             project_type_key=st.selectbox("For what type of project you want to create template pages?",("PoC", "Pilot", "Custom Demo"))
             # Step 4:  Fetch all existing space keys for validation
-            existing_keys = get_existing_space_keys()
+            existing_keys = get_existing_space_keys(confluence)
             # Step 5: Check if the space key is valid
             if space_key and len(space_key) == 3 and space_key.isalpha() and space_key not in existing_keys:
                 st.success(f"The key '{space_key}' is valid and available.",icon="✅")
@@ -72,7 +76,7 @@ def main():
             # Step 6: Create a new confluence pace if inputs are valid
             if space_name and space_key and len(space_key) == 3 and space_key.isalpha() and space_key not in existing_keys:
                 if st.button("Create New Space"):
-                    response = create_new_space(space_name, space_key)
+                    response = create_new_space(confluence,space_name, space_key)
                     st.session_state['space_created'] = True  # Set flag when space is created
                     st.session_state['new_space_key'] = space_key  # Store the new space key
                     st.write(f"New space created: https://hypatos.atlassian.net/wiki/spaces/{space_key}/overview Now copying template pages to the new space.")
@@ -83,6 +87,7 @@ def main():
                 with st.container(height=300):
                     try:            
                         copy_pages_from_space(
+                            confluence,
                             TEMPLATE_SPACE_KEY,
                             st.session_state['new_space_key'],
                             project_type_key,
