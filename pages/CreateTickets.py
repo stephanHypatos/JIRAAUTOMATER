@@ -1,7 +1,7 @@
 import streamlit as st
 from jira import JIRA
 from modules.config import JIRA_URL,ADMINS
-from modules.jira_operations import get_project_keys
+from modules.jira_operations import get_project_keys,create_jira_issue_ticket_template
 import re  # For regular expression matching
 
 if 'api_username' not in st.session_state:
@@ -315,13 +315,8 @@ st.header("Review and Edit Description")
 
 # Provide a text area for the user to edit the description
 edited_description = st.text_area("Issue Description:", value=final_description, height=300)
-
-
 # Convert the Jira markup to HTML
 html_description = jira_markup_to_html(edited_description)
-
-st.header("Preview of the Issue Description")
-
 # Render the HTML in Streamlit
 # st.markdown(html_description, unsafe_allow_html=True)
 
@@ -342,22 +337,61 @@ elif selected_template['summary'] == "New Hire Onboarding":
         selected_template['description'] = selected_template['description'].replace("Date X", start_date).replace("Engineering", department)
 
 
+
+# Add a checkbox for setting the due date
+set_start_date = st.checkbox("Set Start Date")
+set_due_date = st.checkbox("Set Due Date")
+
+if set_start_date:
+    start_date=st.date_input( "Select StartDate",format="YYYY-MM-DD")
+else:
+    start_date = None  # No due date is set
+# If the checkbox is selected, show the date input
+if set_due_date:
+    due_date = st.date_input("Select Due Date", format="YYYY-MM-DD")
+else:
+    due_date = None  # No due date is set
+
+possible_statuses = ["To Do", "Assign To Coe"] 
+# LATER STAGE : # possible_statuses = ["To Do", "Assign To Coe","Assign To ML"] 
+# Let the user select the desired status
+selected_status = st.selectbox("Select the desired status for the issue:", possible_statuses)
+
+
 # Create Issue button
-if st.button("Create Jira Issue"):
+if st.button("Create Ticket"):
     if not all([jira_url, jira_email, jira_api_token]):
         st.error("Please provide all Jira authentication details.")
     else:
         try:
-            
-            # Create a new issue
-            new_issue = jira.create_issue(
-                project=board_key,
-                summary=final_summary,
-                description=edited_description,
-                issuetype={'name': 'Task'}
-            )
+           # Input Values
+            issue_dict = create_jira_issue_ticket_template(board_key,final_summary,'Task',start_date=start_date,due_date=due_date,description=edited_description)
+            new_issue = jira.create_issue(fields=issue_dict)
             
             st.success(f"Issue {new_issue.key} created in project {board_key}.")
+
+            transitions = jira.transitions(new_issue)
+            transition_name_to_id = {t['name']: t['id'] for t in transitions}
+
+            # Check if the desired status is available via a transition
+            transition_id = None
+            for t in transitions:
+                # Retrieve the target status of each transition
+                target_status = t['to']['name']
+                if target_status.lower() == selected_status.lower():
+                    transition_id = t['id']
+                    break
+
+            if transition_id:
+                # Perform the transition
+                jira.transition_issue(new_issue, transition_id)
+                st.success(f"Issue {new_issue.key} transitioned to status '{selected_status}'.")
+            else:
+                st.warning(f"Cannot transition to the status '{selected_status}' from the current status '{new_issue.fields.status.name}'.")
+                st.info("Available transitions are:")
+                for t in transitions:
+                    st.write(f"- {t['name']} (to status '{t['to']['name']}')")
+
             st.markdown(f"[View the issue in Jira]({jira_url}/browse/{new_issue.key})")
         except Exception as e:
             st.error(f"An error occurred: {e}")

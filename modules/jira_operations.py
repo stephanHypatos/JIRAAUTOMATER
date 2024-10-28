@@ -391,6 +391,29 @@ def create_jira_issue(summary, issue_type, start_date=None, due_date=None, paren
 
     return issue_dict
 
+def create_jira_issue_ticket_template(board_key,summary, issue_type, start_date=None, due_date=None, parent_key=None, description=None):
+    issue_dict = {
+        'project': board_key,
+        'summary': summary,
+        'issuetype': {'name': issue_type},
+        'description': description
+    }
+    
+    if parent_key:
+        issue_dict['parent'] = {'key': parent_key}
+
+    if start_date:
+        start_date_normalized = normalize_date(start_date)
+        if start_date_normalized:
+            issue_dict['customfield_10015'] = start_date_normalized
+
+    if due_date:
+        due_date_normalized = normalize_date(due_date)
+        if due_date_normalized:
+            issue_dict['duedate'] = due_date_normalized
+
+    return issue_dict
+
 # Get the Jira Issue Key - ( search by using the summary)
 def get_issue_key(jira, summary):
     # Find the issue key using the summary
