@@ -153,10 +153,43 @@ def get_children_issues(jira, issue_key):
                 linked_issues_tasks=get_linked_issues(linked_issue)
                 for linked_issues_task in linked_issues_tasks:
                     children_issues.append(linked_issues_task.key)
-
             children_issues.append(linked_issue.key)
         return children_issues
     return
+
+# get all child issues of a jira issue
+def get_children_issues_ticket_template(jira, issue_key):
+    issue = jira.issue(issue_key)
+    # List to store children issues
+    children_issues = []
+    
+    #Helper function to find issues linked to the given issue
+    def get_linked_issues(issue_key):
+        jql = f'"parent" = {issue_key}'
+        return jira.search_issues(jql)
+    linked_issues=get_linked_issues(issue_key)
+    # Add linked issues to the list "children_issues"
+    if linked_issues:
+        for linked_issue in linked_issues:
+            if linked_issue.fields.issuetype.name.lower() == 'epic':
+                children_issues.append(
+                {'key': linked_issue.key,
+                'summary': linked_issue.fields.summary,
+                'issuetype': linked_issue.fields.issuetype.name})
+                linked_issues_tasks=get_linked_issues(linked_issue)
+                for linked_issues_task in linked_issues_tasks:
+                    children_issues.append(
+                    {'key': linked_issues_task.key,
+                    'summary': linked_issues_task.fields.summary,
+                    'issuetype': linked_issues_task.fields.issuetype.name})
+            children_issues.append(
+                    {'key': linked_issues_task.key,
+                    'summary': linked_issues_task.fields.summary,
+                    'issuetype': linked_issues_task.fields.issuetype.name})
+        return children_issues
+    return []
+
+             
 
 def get_children_issues_for_timeline(jira, issue_key):
     issue = jira.issue(issue_key)

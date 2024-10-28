@@ -1,13 +1,15 @@
 import streamlit as st
 from jira import JIRA
 from modules.config import JIRA_URL,ADMINS
-from modules.jira_operations import get_project_keys,create_jira_issue_ticket_template
+from modules.jira_operations import get_project_keys,create_jira_issue_ticket_template,save_jira_project_key,get_jira_issue_type_project_key,get_children_issues_ticket_template
 import re  # For regular expression matching
 
 if 'api_username' not in st.session_state:
     st.session_state['api_username'] = ''
 if 'api_password' not in st.session_state:
     st.session_state['api_password'] = ''
+if 'jira_project_key' not in st.session_state:
+    st.session_state['jira_project_key'] = ''
 
 ## DOCU: https://jira.atlassian.com/secure/WikiRendererHelpAction.jspa?section=all
 
@@ -17,10 +19,21 @@ templates = [
     {
         "project_key": "CC",
         "issue_id": "COE-989",  # Reference to an existing Jira issue
+        "duration":1
+    },
+    {
+        "project_key": "CC",
+        "issue_id": "COE-965",  # Reference to an existing Jira issue
+        "duration":1
+    },
+    {
+        "project_key": "CC",
+        "issue_id": "COE-967",  # Reference to an existing Jira issue
+        "duration":1
     },
     {
         "project_key": "CC",  # Project key for Customer Care
-        "summary": "Create Studio Company",
+        "summary": "Create Studio Company Text",
         "description": (
             "Adjust lines as per requirement and delete this you dont need. Do not worry about the format.\n"
             
@@ -246,8 +259,16 @@ jira = JIRA(
 project_keys = get_project_keys(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
 # Select Project Key
 board_key = st.selectbox("Select the Jira Board where want to create the ticket", project_keys, index=0)
-parent_issue_key = st.text_input('Should the ticket have a parent?')
-######### NEW Code with ticket id
+save_jira_project_key(board_key)
+# Step 2: Select a Project from the selected Jira Board
+if st.session_state['jira_project_key']:
+    # Get all Projects (Issue Types)
+    jira_projects = get_jira_issue_type_project_key(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
+    project_issue_key = st.selectbox("Select a Project from the given Jira Board", jira_projects, index=0)
+    children_issues=get_children_issues_ticket_template(jira, project_issue_key)
+    parent_issue_key=st.selectbox("Should the ticket have a parent?", children_issues, index=0)
+    st.write(parent_issue_key['key'])
+    
 # Process templates to fetch details from Jira where necessary
 processed_templates = []
 
@@ -300,15 +321,16 @@ for placeholder, value in placeholder_values.items():
 
 # Replace placeholders in description
 final_description = selected_template['description']
+
 # When replacing placeholders, check if value is provided
 
 for placeholder, value in placeholder_values.items():
     if value:
-        final_summary = final_summary.replace(f"{{{placeholder}}}", value)
+        final_summary = final_summary.replace(f"{{${placeholder}$}}", value)
         final_description = final_description.replace(f"{{${placeholder}$}}", value)
     else:
         # Remove the placeholder if no value is provided
-        final_summary = final_summary.replace(f"{{{placeholder}}}", "")
+        final_summary = final_summary.replace(f"{{${placeholder}$}}", "")
         final_description = final_description.replace(f"{{${placeholder}$}}", "")
 
 st.header("Review and Edit Description")
@@ -337,8 +359,8 @@ elif selected_template['summary'] == "New Hire Onboarding":
         selected_template['description'] = selected_template['description'].replace("Date X", start_date).replace("Engineering", department)
 
 
-
-# Add a checkbox for setting the due date
+# Add a checkbox for setting the start and due dates
+# If the checkbox is selected, show the date input
 set_start_date = st.checkbox("Set Start Date")
 set_due_date = st.checkbox("Set Due Date")
 
@@ -346,7 +368,7 @@ if set_start_date:
     start_date=st.date_input( "Select StartDate",format="YYYY-MM-DD")
 else:
     start_date = None  # No due date is set
-# If the checkbox is selected, show the date input
+
 if set_due_date:
     due_date = st.date_input("Select Due Date", format="YYYY-MM-DD")
 else:
@@ -357,13 +379,13 @@ possible_statuses = ["To Do", "Assign To Coe"]
 # Let the user select the desired status
 selected_status = st.selectbox("Select the desired status for the issue:", possible_statuses)
 
-
 # Create Issue button
 if st.button("Create Ticket"):
     if not all([jira_url, jira_email, jira_api_token]):
         st.error("Please provide all Jira authentication details.")
     else:
         try:
+            final_summary=f'[{board_key}] {final_summary}'
            # Input Values
             issue_dict = create_jira_issue_ticket_template(board_key,final_summary,'Task',start_date=start_date,due_date=due_date,description=edited_description)
             new_issue = jira.create_issue(fields=issue_dict)
