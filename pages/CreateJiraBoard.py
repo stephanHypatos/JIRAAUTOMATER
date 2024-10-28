@@ -8,21 +8,6 @@ from modules.confluence_operations import get_existing_space_keys
 from modules.jira_operations import create_jira_issue,save_jira_project_key
 from modules.jira_board_operations import check_project_name_exists,assign_project_workflow_scheme,assign_issue_type_scheme,assign_issue_type_screen_scheme,assign_users_to_role_of_jira_board,create_jira_board,get_assignable_users
 
-# TO Do
-# Name validation 
-
-# # projectId='10029' ## template project - put that in a env var 
-# # add an issue type account with the customer name 
-
-# create diagram. 
-# 0. select name, key and users 1. create board 2. get project id 3. assing user to role 4. assign all schemes  5. add automations 6. update the issue field layout
-
-# DONE 
-# for role in project roleids  - assign users DONE
-# let user select the users that should be assigned to the board
-
-# jira_board_Id="10249"
-# jira_board_key='BX'
 if 'api_username' not in st.session_state:
         st.session_state['api_username'] = ''
 if 'api_password' not in st.session_state:
