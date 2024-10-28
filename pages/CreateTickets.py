@@ -28,8 +28,8 @@ templates = [
             "h2. Ask    \n\n"
             "*Create a new studio company.*\n\n"
             "|| Customername || cluster || Env ||\n"
-            "| {customername} | PROD-EU |[TEST] |\n"
-            "| {customername} | PROD-US |[PROD] |\n\n"
+            "| {$customername$} | PROD-EU |[TEST] |\n"
+            "| {$customername$} | PROD-US |[PROD] |\n\n"
             
             "*Assign hypatos default users*\n\n"
             "- mluser\n"
@@ -102,9 +102,131 @@ templates = [
     }
 ]
 
+# Function to convert Jira markup to HTML
+def jira_markup_to_html(text):
+    # Convert headings
+    for i in range(6, 0, -1):
+        text = re.sub(rf'h{i}\.\s*(.*)', rf'<h{i}>\1</h{i}>', text)
+
+    # Convert bold (**text** or *text*)
+    text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'\*(.*?)\*', r'<strong>\1</strong>', text)
+
+    # Convert italics (_text_)
+    text = re.sub(r'_(.*?)_', r'<em>\1</em>', text)
+
+    # Convert underlines (+text+)
+    text = re.sub(r'\+(.*?)\+', r'<u>\1</u>', text)
+
+    # Convert strikethrough (-text-)
+    text = re.sub(r'-(.*?)-', r'<del>\1</del>', text)
+
+    # Convert monospace ({{text}})
+    text = re.sub(r'{{(.*?)}}', r'<code>\1</code>', text)
+
+    # Convert citations (??text??)
+    text = re.sub(r'\?\?(.*?)\?\?', r'<cite>\1</cite>', text)
+
+    # Convert superscript (^text^)
+    text = re.sub(r'\^(.*?)\^', r'<sup>\1</sup>', text)
+
+    # Convert subscript (~text~)
+    text = re.sub(r'~(.*?)~', r'<sub>\1</sub>', text)
+
+    # Convert inserted text (++text++)
+    text = re.sub(r'\+\+(.*?)\+\+', r'<ins>\1</ins>', text)
+
+    # Convert code blocks
+    text = re.sub(r'\{code\}(.*?)\{code\}', r'<pre><code>\1</code></pre>', text, flags=re.DOTALL)
+
+    # Convert blockquotes {quote}
+    text = re.sub(r'\{quote\}(.*?)\{quote\}', r'<blockquote>\1</blockquote>', text, flags=re.DOTALL)
+
+    # Convert horizontal rules (----)
+    text = re.sub(r'----', r'<hr/>', text)
+
+    # Convert links [text|url]
+    text = re.sub(r'\[(.*?)\|(.*?)\]', r'<a href="\2">\1</a>', text)
+
+    # Convert images !image_url!
+    text = re.sub(r'!(.*?)!', r'<img src="\1" alt="Image"/>', text)
+
+    # Convert unordered lists
+    lines = text.split('\n')
+    in_list = False
+    new_lines = []
+    for line in lines:
+        if re.match(r'^\* ', line):
+            if not in_list:
+                new_lines.append('<ul>')
+                in_list = True
+            new_lines.append('<li>' + line[2:] + '</li>')
+        else:
+            if in_list:
+                new_lines.append('</ul>')
+                in_list = False
+            new_lines.append(line)
+    if in_list:
+        new_lines.append('</ul>')
+    text = '\n'.join(new_lines)
+
+    # Convert ordered lists
+    lines = text.split('\n')
+    in_list = False
+    new_lines = []
+    for line in lines:
+        if re.match(r'^# ', line):
+            if not in_list:
+                new_lines.append('<ol>')
+                in_list = True
+            new_lines.append('<li>' + line[2:] + '</li>')
+        else:
+            if in_list:
+                new_lines.append('</ol>')
+                in_list = False
+            new_lines.append(line)
+    if in_list:
+        new_lines.append('</ol>')
+    text = '\n'.join(new_lines)
+
+    # Convert tables
+    lines = text.split('\n')
+    in_table = False
+    new_lines = []
+    for line in lines:
+        if re.match(r'^\|\|', line):
+            if not in_table:
+                new_lines.append('<table>')
+                in_table = True
+            # Header row
+            cells = re.findall(r'\|\|(.*?)\|\|', line)
+            row = '<tr>' + ''.join(f'<th>{cell.strip()}</th>' for cell in cells) + '</tr>'
+            new_lines.append(row)
+        elif re.match(r'^\|', line):
+            if not in_table:
+                new_lines.append('<table>')
+                in_table = True
+            # Data row
+            cells = re.findall(r'\|(.*?)\|', line)
+            row = '<tr>' + ''.join(f'<td>{cell.strip()}</td>' for cell in cells) + '</tr>'
+            new_lines.append(row)
+        else:
+            if in_table:
+                new_lines.append('</table>')
+                in_table = False
+            new_lines.append(line)
+    if in_table:
+        new_lines.append('</table>')
+    text = '\n'.join(new_lines)
+
+    # Convert line breaks
+    text = text.replace('\n', '<br/>')
+
+    return text
 
 def find_placeholders(text):
-    return re.findall(r"\{(.*?)\}", text)
+    #return re.findall(r"\{\{(.*?)\}\}", text)
+    return re.findall(r"\{\$(.*?)\$\}", text)
 
 # Streamlit app title
 st.title("Create a Jira Issue")
@@ -123,8 +245,8 @@ jira = JIRA(
 # Get Project Keys from Jira
 project_keys = get_project_keys(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
 # Select Project Key
-board_key = st.selectbox("Select Jira Board", project_keys, index=0)
-
+board_key = st.selectbox("Select the Jira Board where want to create the ticket", project_keys, index=0)
+parent_issue_key = st.text_input('Should the ticket have a parent?')
 ######### NEW Code with ticket id
 # Process templates to fetch details from Jira where necessary
 processed_templates = []
@@ -156,20 +278,6 @@ selected_summary = st.selectbox("Select a ticket to create:", summaries)
 # Retrieve the selected template
 selected_template = next((template for template in processed_templates if template['summary'] == selected_summary), None)
 
-################ NEW CODE END ##
-
-
-# OLD CODE Collect all summaries
-# summaries = [template['summary'] for template in templates]
-# # User selects a ticket summary
-# selected_summary = st.selectbox("Select a ticket to create:", summaries)
-
-# # Retrieve the selected template
-# selected_template = next((template for template in templates if template['summary'] == selected_summary), None)
-
-### OLD CODE END
-
-
 # Find placeholders in summary and description
 summary_placeholders = find_placeholders(selected_template['summary'])
 description_placeholders = find_placeholders(selected_template['description'])
@@ -188,7 +296,7 @@ for placeholder in all_placeholders:
 # Replace placeholders in summary
 final_summary = selected_template['summary']
 for placeholder, value in placeholder_values.items():
-    final_summary = final_summary.replace(f"{{{placeholder}}}", value)
+    final_summary = final_summary.replace(f"{{${placeholder}$}}", value)
 
 # Replace placeholders in description
 final_description = selected_template['description']
@@ -197,17 +305,27 @@ final_description = selected_template['description']
 for placeholder, value in placeholder_values.items():
     if value:
         final_summary = final_summary.replace(f"{{{placeholder}}}", value)
-        final_description = final_description.replace(f"{{{placeholder}}}", value)
+        final_description = final_description.replace(f"{{${placeholder}$}}", value)
     else:
         # Remove the placeholder if no value is provided
         final_summary = final_summary.replace(f"{{{placeholder}}}", "")
-        final_description = final_description.replace(f"{{{placeholder}}}", "")
+        final_description = final_description.replace(f"{{${placeholder}$}}", "")
 
 st.header("Review and Edit Description")
 
 # Provide a text area for the user to edit the description
 edited_description = st.text_area("Issue Description:", value=final_description, height=300)
-st.markdown(edited_description)
+
+
+# Convert the Jira markup to HTML
+html_description = jira_markup_to_html(edited_description)
+
+st.header("Preview of the Issue Description")
+
+# Render the HTML in Streamlit
+# st.markdown(html_description, unsafe_allow_html=True)
+
+
 # If the template requires additional inputs, prompt the user
 additional_fields = {}
 
