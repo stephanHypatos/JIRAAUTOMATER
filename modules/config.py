@@ -26,6 +26,7 @@ JIRA_SUBTASK_ISSUE_TYPE = 'Sub-task'
 JIRA_TEMPLATE_BOARD_KEY = 'TD'
 JIRA_DEV_ROLE_ID='10071'
 JIRA_ADMIN_ROLE_ID='10002'
+TEMPLATE_WF_BOARD_ID='10029' ## TEMPLATE_BOARD_ID for the workflowscheme
 JIRA_API_URL = "https://hypatos.atlassian.net/rest/api/2"
 JIRA_API_URL_V3 = "https://hypatos.atlassian.net/rest/api/3"
 

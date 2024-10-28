@@ -4,7 +4,7 @@ from atlassian import Confluence
 import json
 import streamlit as st
 from jira import JIRA
-from modules.config import JIRA_URL,JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID,JIRA_API_URL,JIRA_API_URL_V3
+from modules.config import JIRA_URL,JIRA_API_URL,JIRA_API_URL_V3,TEMPLATE_WF_BOARD_ID
 
 ## credentials for JIRA library
 # Jira connection setup
@@ -19,7 +19,6 @@ headers = {
 "Accept": "application/json",
 "Content-Type": "application/json"
 }
-
 
 def check_project_name_exists(project_name):
         # Jira REST API to get all projects
@@ -51,16 +50,13 @@ def get_id_for_jira_board(jira_board_key):
     auth=auth
     )
     
-    #st.write(json.dumps(json.loads(response.text), sort_keys=True, indent=4, separators=(",", ": ")))
     json_data = json.loads(response.text)
     st.write(json_data['id'])
     return json_data['id']
 
 def get_project_workflow_scheme():
         url = f"{JIRA_API_URL}/workflowscheme/project"
-        #projectId='10248'
-        #projectId='10215'
-        projectId='10029' ## template project 
+        projectId=TEMPLATE_WF_BOARD_ID
         query = {
         'projectId': {projectId}
         }
@@ -77,9 +73,6 @@ def get_project_workflow_scheme():
             st.error(f"Error occured: {str(e)}")
         
         return
-
-
-        
 
 def assign_project_workflow_scheme(jira_board_Id):
     
@@ -103,7 +96,6 @@ def assign_project_workflow_scheme(jira_board_Id):
     
     except Exception as e: 
         st.error(f"Error occured: {str(e)}")
-
 
 def assign_issue_type_scheme(jira_board_Id):
     
@@ -153,7 +145,6 @@ def assign_issue_type_screen_scheme(jira_board_Id):
 
     return
 
-
 def assign_users_to_role_of_jira_board(projectIdOrKey, user_list, jira_roles):
     for role in jira_roles:
         url = f"{JIRA_API_URL}/project/{projectIdOrKey}/role/{role}"
@@ -172,7 +163,7 @@ def assign_users_to_role_of_jira_board(projectIdOrKey, user_list, jira_roles):
                 st.write(f"User(s) successfully assigned to role {role}")
             else:
                 st.write(f"Failed to assign user(s) to role {role}: {response.status_code} - {response.text}")
-                return  # If you want to stop on the first failure, keep this
+                return  
 
         except requests.exceptions.RequestException as e:
             st.write(f"Error while assigning user(s) to role {role}: {e}")
@@ -208,9 +199,7 @@ def create_jira_board(key, name, project_type, project_template,lead_account_id)
         st.error(f"Failed to create Jira Board: {response.status_code} - {response.text}")
     return {'id':project_id,'key':project_name}
 
-
 # Function to get assignable users from Jira API
-
 def get_assignable_users(project_keys):
     url = f"{JIRA_API_URL}/user/assignable/multiProjectSearch"
     params = {
