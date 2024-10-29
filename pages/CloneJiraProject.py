@@ -2,7 +2,7 @@ from datetime import datetime,timedelta
 import streamlit as st
 from jira import JIRA
 import os
-from modules.config import JIRA_URL,ADMINS
+from modules.config import JIRA_URL,ADMINS,JIRA_TEMPLATE_BOARD_KEY
 from modules.jira_operations import get_project_keys,get_users_from_jira_project,get_jira_issue_type_project_key_with_displayname,display_issue_summaries,get_jira_issue_type_account_key,update_parent_key,save_jira_account_type_parent,save_jira_project_key
 from modules.jira_clone_issue_operations import get_time_delta,clone_issue_recursive_first_pass,add_issue_links,update_project_name
 if 'api_username' not in st.session_state:
@@ -34,7 +34,7 @@ def main():
         
         project_start_date=st.date_input("Enter the project startdate:", value=None,format="YYYY-MM-DD")
         
-        jira_template_projects = get_jira_issue_type_project_key_with_displayname(jira)
+        jira_template_projects = get_jira_issue_type_project_key_with_displayname(jira,JIRA_TEMPLATE_BOARD_KEY)
         source_issue_key=display_issue_summaries(jira_template_projects)
         
         delta_days=get_time_delta(jira,project_start_date,source_issue_key)

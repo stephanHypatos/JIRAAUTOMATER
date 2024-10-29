@@ -1,7 +1,7 @@
 import streamlit as st
 from jira import JIRA
-from modules.config import JIRA_URL,ADMINS
-from modules.jira_operations import get_project_keys,create_jira_issue_ticket_template,save_jira_project_key,get_jira_issue_type_project_key,get_children_issues_ticket_template
+from modules.config import JIRA_URL,ADMINS,JIRA_SUBTASK_ISSUE_TYPE,JIRA_TASK_ISSUE_TYPE
+from modules.jira_operations import get_project_keys,create_jira_issue_ticket_template,save_jira_project_key,get_jira_issue_type_project_key,get_children_issues_ticket_template,get_jira_issue_type_project_key_with_displayname,display_issue_summaries
 import re  # For regular expression matching
 
 if 'api_username' not in st.session_state:
@@ -256,19 +256,31 @@ jira = JIRA(
 )
 
 # Get Project Keys from Jira
-project_keys = get_project_keys(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
+board_keys = get_project_keys(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
 # Select Project Key
-board_key = st.selectbox("Select the Jira Board where want to create the ticket", project_keys, index=0)
+board_key = st.selectbox("Select the Jira Board where want to create the ticket", board_keys, index=0)
+# Save the board key to session state
 save_jira_project_key(board_key)
+
 # Step 2: Select a Project from the selected Jira Board
 if st.session_state['jira_project_key']:
-    # Get all Projects (Issue Types)
-    jira_projects = get_jira_issue_type_project_key(JIRA_URL, st.session_state['api_username'], st.session_state['api_password'])
-    project_issue_key = st.selectbox("Select a Project from the given Jira Board", jira_projects, index=0)
-    children_issues=get_children_issues_ticket_template(jira, project_issue_key)
-    parent_issue_key=st.selectbox("Should the ticket have a parent?", children_issues, index=0)
-    st.write(parent_issue_key['key'])
-    
+    # Get all Projects (Issue Types) in a given Jira Board
+    jira_template_projects = get_jira_issue_type_project_key_with_displayname(jira,st.session_state['jira_project_key'])
+    source_issue_key=display_issue_summaries(jira_template_projects)
+    try:
+        children_issues=get_children_issues_ticket_template(jira, source_issue_key)
+        words_to_exclude = ['milestone'] # Tickets should not be attached to Mile Stone Tasks
+        filtered_children_issues = [
+            issue for issue in children_issues 
+            if not any(word in issue['summary'].lower() for word in words_to_exclude)
+        ]
+        select_options = [{'key': 'No Parent', 'summary': 'N/A', 'issuetype': 'N/A'}]
+        select_options.extend(children_issues)
+        parent_issue_key=st.selectbox("Attach the ticket to a parent Task:?", select_options, index=0)
+        
+        st.write(parent_issue_key['key'])
+    except Exception as e:
+        st.warning(f'The project {source_issue_key} seems to have no child issues: {e}')
 # Process templates to fetch details from Jira where necessary
 processed_templates = []
 
@@ -386,8 +398,16 @@ if st.button("Create Ticket"):
     else:
         try:
             final_summary=f'[{board_key}] {final_summary}'
-           # Input Values
-            issue_dict = create_jira_issue_ticket_template(board_key,final_summary,'Task',start_date=start_date,due_date=due_date,description=edited_description)
+           
+            issue_type = JIRA_SUBTASK_ISSUE_TYPE
+            parent_key = parent_issue_key['key']
+
+            if parent_issue_key['key']== 'No Parent':
+                parent_key = None
+                issue_type = JIRA_TASK_ISSUE_TYPE
+            
+            #Input Values
+            issue_dict = create_jira_issue_ticket_template(board_key,final_summary,issue_type,start_date=start_date,due_date=due_date,parent_key=parent_key,description=edited_description)
             new_issue = jira.create_issue(fields=issue_dict)
             
             st.success(f"Issue {new_issue.key} created in project {board_key}.")

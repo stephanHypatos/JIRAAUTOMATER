@@ -111,9 +111,9 @@ def get_jira_issue_type_project_key(jira_url, username, password):
     return select_options
 
 # Function returns a list of JIRA Project Templates from the Template Board
-def get_jira_issue_type_project_key_with_displayname(jira):
+def get_jira_issue_type_project_key_with_displayname(jira,project_key):
     # the jira board key of the template board
-    project_key = JIRA_TEMPLATE_BOARD_KEY
+    #project_key = JIRA_TEMPLATE_BOARD_KEY
     query = f'project="{project_key}" AND issuetype="Project"'
     project_issue_keys = jira.search_issues(query, maxResults=10)
     project_keys= [{'key': issue.key, 'summary': issue.fields.summary}for issue in project_issue_keys]
@@ -172,20 +172,20 @@ def get_children_issues_ticket_template(jira, issue_key):
     if linked_issues:
         for linked_issue in linked_issues:
             if linked_issue.fields.issuetype.name.lower() == 'epic':
-                children_issues.append(
-                {'key': linked_issue.key,
-                'summary': linked_issue.fields.summary,
-                'issuetype': linked_issue.fields.issuetype.name})
+                # children_issues.append(
+                # {'key': linked_issue.key,
+                # 'summary': linked_issue.fields.summary,
+                # 'issuetype': linked_issue.fields.issuetype.name})
                 linked_issues_tasks=get_linked_issues(linked_issue)
                 for linked_issues_task in linked_issues_tasks:
                     children_issues.append(
                     {'key': linked_issues_task.key,
                     'summary': linked_issues_task.fields.summary,
                     'issuetype': linked_issues_task.fields.issuetype.name})
-            children_issues.append(
-                    {'key': linked_issues_task.key,
-                    'summary': linked_issues_task.fields.summary,
-                    'issuetype': linked_issues_task.fields.issuetype.name})
+            # children_issues.append(
+            #         {'key': linked_issues_task.key,
+            #         'summary': linked_issues_task.fields.summary,
+            #         'issuetype': linked_issues_task.fields.issuetype.name})
         return children_issues
     return []
 
