@@ -124,7 +124,7 @@ def display_issue_summaries(issue_list):
     issue_summaries = [issue['summary'] for issue in issue_list]
     
     # Display the selectbox with summaries
-    selected_summary = st.selectbox("Select Project Template", issue_summaries)
+    selected_summary = st.selectbox("Select Project:", issue_summaries)
 
     # Find the issue with the selected summary
     selected_issue = next(issue for issue in issue_list if issue['summary'] == selected_summary)
