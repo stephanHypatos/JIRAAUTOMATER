@@ -9,6 +9,12 @@ from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_
 from modules.utils import normalize_NaN, normalize_date, calculate_end_date
 
 
+## generice Jira Auth Function that returns a new instance of JIRA
+def authenticate(jira_url,jira_email,jira_api_token):
+    
+    jira = JIRA(jira_url,basic_auth=(jira_email, jira_api_token))
+    return jira
+
 # JIRA Credentials Handling
 
 # Function to store credentials in session state
