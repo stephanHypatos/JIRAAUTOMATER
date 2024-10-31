@@ -121,7 +121,7 @@ if st.session_state['jira_project_key']:
         if st.session_state['data_frame_for_report'] is not None:
             if st.button("Create Status Report"):
                 try:
-                    presentation_path= create_powerpoint(st.session_state['data_frame_for_report'])
+                    presentation_path= create_powerpoint(st.session_state['data_frame_for_report'],project_issue_key)
                     st.success("Weekly Report created.")
                     # Create a download button in the Streamlit app
                     with open(presentation_path, "rb") as f:
@@ -129,7 +129,7 @@ if st.session_state['jira_project_key']:
                             label="Download PowerPoint Status Report",
                             data=f,
                             #file_name="presentation.pptx",
-                            file_name=f'{get_jira_project_key()}_Weekly_Status_Report_CW_{get_calendar_week()}.pptx',
+                            file_name=f'{project_issue_key}_Weekly_Status_Report_CW_{get_calendar_week()}.pptx',
                             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
                         )
                 except:

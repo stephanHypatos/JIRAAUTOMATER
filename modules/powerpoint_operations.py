@@ -10,7 +10,7 @@ import tempfile
 
 
 ## get all children issues applies a filter and creates a powerpoint slide deck
-def create_powerpoint(df):
+def create_powerpoint(df,project_issue_key):
 
      # Convert 'Due Date' to 'YYYY-MM-DD' format ( in order to not display h m s in the slide)
     #df['Due Date'] = df['Due Date'].dt.strftime('%Y-%m-%d')
@@ -18,7 +18,8 @@ def create_powerpoint(df):
     df = df.drop(columns=['Issue Type'])
     
     # Path to template and output PowerPoint files (Weekly Report)
-    template_path = f'templates/template_{get_jira_project_key()}.pptx' 
+    #template_path = f'templates/template_{get_jira_project_key()}.pptx' 
+    template_path = f'templates/template_{project_issue_key}.pptx' 
     # Load PowerPoint template
     presentation = Presentation(template_path)
 
@@ -67,6 +68,7 @@ def create_powerpoint(df):
     
 # create the presentation from a template args. jql and jira credentials 
 def create_powerpoint_presentation_jql(jira, jql):
+
     # Get issues from Jira using JQL
     issues = jira.search_issues(jql)
 
@@ -88,6 +90,7 @@ def create_powerpoint_presentation_jql(jira, jql):
     
     # Path to template and output PowerPoint files (Weekly Report)
     template_path = f'templates/template_{get_jira_project_key()}.pptx' 
+    
     # Load PowerPoint template
     presentation = Presentation(template_path)
 
