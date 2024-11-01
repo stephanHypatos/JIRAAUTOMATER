@@ -1,7 +1,7 @@
 import streamlit as st
 import datetime  # Import datetime to work with dates
 from jira import JIRA
-from modules.config import JIRA_URL, ADMINS, JIRA_SUBTASK_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE
+from modules.config import JIRA_URL, ADMINS, JIRA_SUBTASK_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE,HYPA_PMO_TICKET_DOCU
 from modules.jira_operations import (
     get_project_keys,
     create_jira_issue_ticket_template,
@@ -47,11 +47,8 @@ def main():
         jira = st.session_state['jira']
 
         with st.expander('Expand for more information.'):
-            st.write('''Read the documentation 
-                         ....
-                         ....
+            st.write(f'''Read the [documentation]({HYPA_PMO_TICKET_DOCU}) here.
                          ''')
-
         # Process templates once and store in session state
         if not st.session_state['processed_templates']:
             process_templates(jira)

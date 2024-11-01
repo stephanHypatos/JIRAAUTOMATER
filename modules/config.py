@@ -61,5 +61,7 @@ TABLE_INDEX = 0
 HP_ID_TCUS_SPACE='1290109126' 
 
 # Documenation Links
-CREATE_SPACE_DOCU = 'https://hypatos.atlassian.net/wiki/spaces/PD/pages/1289814125/Confluence+Customer+Space+Creation'
-HYPA_PMO_DOCU = 'https://hypatos.atlassian.net/wiki/spaces/PD/pages/1115947248/Project+Management+Playbook+HYPA+PMO'
+CREATE_SPACE_DOCU='https://hypatos.atlassian.net/wiki/spaces/PD/pages/1289814125/Confluence+Customer+Space+Creation'
+HYPA_PMO_DOCU='https://hypatos.atlassian.net/wiki/spaces/PD/pages/1115947248/Project+Management+Playbook+HYPA+PMO'
+HYPA_PMO_TICKET_DOCU='https://hypatos.atlassian.net/wiki/spaces/PD/pages/1553858571/Ticket+Creation+with+HYPA+PMO+APP'
+HYPA_PMO_AUTH_DOCU='https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/'
