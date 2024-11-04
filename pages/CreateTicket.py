@@ -53,12 +53,12 @@ def main():
         if not st.session_state['processed_templates']:
             process_templates(jira)
         processed_templates = st.session_state['processed_templates']
-
+        
         st.header("Select and Input")
 
         # Ticket template selection and input (outside of form to allow dynamic updates)
         final_summary, edited_description = ticket_selection_and_input(processed_templates)
-
+        
         # Board selection and project/parent issue selection (outside of form)
         board_key = board_selection()
         st.session_state['jira_project_key'] = board_key
@@ -89,6 +89,7 @@ def process_templates(jira):
                     "summary": summary,
                     "description": description
                 })
+                
             except Exception as e:
                 st.error(f"Failed to fetch issue {template['issue_id']}: {e}")
         else:
@@ -99,13 +100,18 @@ def ticket_selection_and_input(processed_templates):
     """Handle ticket template selection and placeholder inputs."""
     summaries = [template['summary'] for template in processed_templates]
     selected_summary = st.selectbox("Select a ticket to create:", summaries, key='selected_summary')
-
+    
     selected_template = next(
         (template for template in processed_templates if template['summary'] == selected_summary), None)
+    
+    # Ensure the 'description' field is a string
+    description_text = selected_template.get('description', '')
+    if description_text is None:
+        description_text = ''
 
     # Find placeholders
     summary_placeholders = find_placeholders(selected_template['summary'])
-    description_placeholders = find_placeholders(selected_template['description'])
+    description_placeholders = find_placeholders(description_text)
     all_placeholders = set(summary_placeholders + description_placeholders)
 
     placeholder_values = {}

@@ -3,6 +3,11 @@
 TICKET_TEMPLATES = [
     {
         "project_key": "CC",
+        "issue_id": "LOH-229",  # Reference to an existing Jira issue
+        "duration":1
+    },
+    {
+        "project_key": "CC",
         "issue_id": "COE-989",  # Reference to an existing Jira issue
         "duration":1
     },
