@@ -5,8 +5,7 @@ st.set_page_config(page_title="Authenticate", page_icon="🔐")
 
 st.sidebar.header("Authenticate")
 st.title("Authenticate 🤝")
-st.write(
-    f'First thing to do is to provide your jira credentials. If you are here for the first time you might want to read the [documentation]({HYPA_PMO_AUTH_DOCU})')
+st.write(f'First thing to do is to provide your jira credentials. If you are here for the first time you might want to read the [documentation]({HYPA_PMO_AUTH_DOCU})')
 
 # Initialize session state for JIRA API credentials if not already done
 if 'api_username' not in st.session_state:
