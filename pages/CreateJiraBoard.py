@@ -6,7 +6,7 @@ from jira import JIRA
 from modules.config import JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID,LEAD_USER_MAPPING,TEMPLATE_MAPPING,ASSIGNABLE_USER_GROUP,ADMINS,JIRA_URL
 from modules.confluence_operations import get_existing_space_keys
 from modules.jira_operations import create_jira_issue,save_jira_project_key
-from modules.jira_board_operations import check_project_name_exists,assign_project_workflow_scheme,assign_issue_type_scheme,assign_issue_type_screen_scheme,assign_users_to_role_of_jira_board,create_jira_board,get_assignable_users
+from modules.jira_board_operations import check_project_name_exists,assign_project_workflow_scheme,assign_issue_type_scheme,assign_issue_type_screen_scheme,assign_users_to_role_of_jira_board,create_jira_board,get_assignable_users,get_all_groups,assign_group_to_role
 
 if 'api_username' not in st.session_state:
         st.session_state['api_username'] = ''
@@ -45,6 +45,19 @@ def main():
             project_key = st.text_input("Enter Project Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
             
             existing_keys = get_existing_space_keys(confluence)
+
+            # Fetch groups
+            # try:
+            #     st.header("Groups")
+            #     groups = get_all_groups()
+            #     for group in groups:
+            #         group_name = group['name']
+            #         group_id = group['groupId'] if 'groupId' in group else 'ID not available'  # Some Jira instances might not return `groupId`
+            #         st.write(f"**Group Name**: {group_name}, **Group ID**: {group_id}")
+            # except Exception as e:
+            #     st.error(f"Error fetching groups: {e}")
+
+
 
             # Check if the space key is valid
             if project_key and len(project_key) == 3 and project_key.isalpha() and project_key not in existing_keys:
