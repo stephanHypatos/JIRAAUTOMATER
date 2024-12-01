@@ -20,7 +20,9 @@ if 'temp_jira_board_id' not in st.session_state:
     st.session_state['temp_jira_board_id'] = ''
 if 'selected_users' not in st.session_state:
     st.session_state['selected_users'] = []
-        
+if 'selected_user_groups' not in st.session_state:
+    st.session_state['selected_user_groups'] = []
+
 def main():
 
     st.set_page_config(page_title="Create Jira Board", page_icon="📋")
@@ -33,7 +35,7 @@ def main():
 
     else:
         try:
-            jira_role_ids = [JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID]
+            jira_role_ids = [JIRA_ADMIN_ROLE_ID]
             confluence = Confluence(
                 url=JIRA_URL,
                 username=st.session_state['api_username'],
@@ -42,21 +44,9 @@ def main():
             
             # Get inputs from the user
             lead_user = st.selectbox("Select Account Lead", ['stephan.kuche','jorge.costa','elena.kuhn','erik.roa','alex.menuet','yavuz.guney','michael.misterka','ekaterina.mironova'])
-            project_key = st.text_input("Enter Project Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
+            project_key = st.text_input("Enter Board Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
             
             existing_keys = get_existing_space_keys(confluence)
-
-            # Fetch groups
-            # try:
-            #     st.header("Groups")
-            #     groups = get_all_groups()
-            #     for group in groups:
-            #         group_name = group['name']
-            #         group_id = group['groupId'] if 'groupId' in group else 'ID not available'  # Some Jira instances might not return `groupId`
-            #         st.write(f"**Group Name**: {group_name}, **Group ID**: {group_id}")
-            # except Exception as e:
-            #     st.error(f"Error fetching groups: {e}")
-
 
 
             # Check if the space key is valid
@@ -66,9 +56,11 @@ def main():
                 st.error("The key must be alpha-3, and it must not already exist.")
 
             project_name_raw = st.text_input("Enter Client Name", placeholder='Happy Customer', help='Naming Convention: Try not to go for a too long version.')
-        
+
+
             # append Hypatos to create the new board name
             project_name = f"{project_name_raw} x Hypatos"
+
 
             if project_name and project_name_raw != '':
                 try:
@@ -128,6 +120,15 @@ def main():
                         # Display multiselect widget for user selection inside the form
                         selected_users = st.multiselect("Select one or more users", user_names, default=st.session_state['selected_users'])
 
+                        #user_group_options = {group['name']: group['groupId'] for group in user_groups}
+                        #user_group_names = list(user_group_options.keys())
+                        # Display multiselect widget for user partner group selection
+                        #selected_user_group = st.multiselect("Select the partner", user_group_names)
+
+                        # get all partner user groups                        
+                        user_groups = get_all_groups(group_alias="partner")
+                        selected_user_groups = st.multiselect("Select external User Groups", user_groups)
+
                         # Submit button inside the form
                         submit_button = st.form_submit_button("Submit Selection")
 
@@ -135,7 +136,7 @@ def main():
                             st.session_state['selected_users'] = selected_users
                             selected_user_account_ids = [user_options[user] for user in selected_users]
                             try:
-                                assign_users_to_role_of_jira_board(st.session_state['temp_jira_board_id'],selected_user_account_ids,jira_role_ids)
+                                assign_users_to_role_of_jira_board(st.session_state['temp_jira_board_id'],selected_user_account_ids,jira_role_ids,selected_user_groups)
                                 st.write("Selected Users assigned to Board:", selected_user_account_ids)
                             except Exception as e:
                                 st.warning(f'Error occured while assigne users to Board: {e}')

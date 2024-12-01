@@ -4,7 +4,7 @@ from atlassian import Confluence
 import json
 import streamlit as st
 from jira import JIRA
-from modules.config import JIRA_URL,JIRA_API_URL,JIRA_API_URL_V3,TEMPLATE_WF_BOARD_ID
+from modules.config import JIRA_URL,JIRA_API_URL,JIRA_API_URL_V3,TEMPLATE_WF_BOARD_ID,DEFAULT_BOADR_GROUPS
 
 ## credentials for JIRA library
 # Jira connection setup
@@ -146,13 +146,14 @@ def assign_issue_type_screen_scheme(jira_board_Id):
     return
 
 
-def assign_users_to_role_of_jira_board(projectIdOrKey, user_list, jira_roles):
-    coe_group_name = "COE"  # Confirmed group name
+def assign_users_to_role_of_jira_board(projectIdOrKey, user_list, jira_roles,user_groups):
+    default_groups= DEFAULT_BOADR_GROUPS
+    merged_assigned_groups = list(set(user_groups + default_groups))
     
     for role in jira_roles:
         # Assign the COE group first
-        assign_group_to_role(projectIdOrKey, coe_group_name, role)
-
+        assign_groups_to_role(projectIdOrKey, merged_assigned_groups, role)
+        
         # Now assign the users
         url = f"{JIRA_API_URL}/project/{projectIdOrKey}/role/{role}"
         data = {
@@ -280,3 +281,55 @@ def assign_group_to_role(projectIdOrKey, group_name, role):
             st.write(f"Failed to assign group '{group_name}' to role {role}: {response.status_code} - {response.text}")
     except requests.exceptions.RequestException as e:
         st.write(f"Error while assigning group '{group_name}' to role {role}: {e}")
+
+
+def assign_groups_to_role(projectIdOrKey, group_names, role):
+    """
+    Assigns multiple groups to a specific role in a project.
+
+    Args:
+        projectIdOrKey (str): The project ID or key.
+        group_names (list): A list of group names to assign.
+        role (str): The role ID or name to assign the groups to.
+    """
+    url = f"{JIRA_API_URL}/project/{projectIdOrKey}/role/{role}"
+    data = {
+        "group": group_names  # Assign the list of groups
+    }
+    try:
+        st.write(f"Assigning groups {group_names} to role {role}")
+        response = requests.post(
+            url,
+            headers={**headers, 'Content-Type': 'application/json'},
+            auth=auth,
+            data=json.dumps(data)
+        )
+
+        if response.status_code in [200, 201]:
+            st.write(f"Groups {group_names} successfully assigned to role {role}")
+        else:
+            st.write(f"Failed to assign groups {group_names} to role {role}: {response.status_code} - {response.text}")
+    except requests.exceptions.RequestException as e:
+        st.write(f"Error while assigning groups {group_names} to role {role}: {e}")
+
+
+
+
+def get_all_groups(group_alias=None):
+    #If group_alias is "partner", only return groups with names starting with "ext-".
+
+    ##Fetch all groups and return a list of group names.
+    url = f"{JIRA_API_URL}/groups/picker"
+    try:
+        response = requests.get(url, headers=headers, auth=auth)
+        response.raise_for_status()
+        groups = response.json().get("groups", [])
+        # Extract only group names
+        group_names = [group['name'] for group in groups]
+        # Apply filtering based on group_alias
+        if group_alias == "partner":
+            group_names = [name for name in group_names if name.startswith("ext-")]
+        return group_names
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching groups: {e}")
+        return []
