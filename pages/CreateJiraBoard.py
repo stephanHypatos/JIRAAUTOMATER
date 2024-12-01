@@ -120,11 +120,6 @@ def main():
                         # Display multiselect widget for user selection inside the form
                         selected_users = st.multiselect("Select one or more users", user_names, default=st.session_state['selected_users'])
 
-                        #user_group_options = {group['name']: group['groupId'] for group in user_groups}
-                        #user_group_names = list(user_group_options.keys())
-                        # Display multiselect widget for user partner group selection
-                        #selected_user_group = st.multiselect("Select the partner", user_group_names)
-
                         # get all partner user groups                        
                         user_groups = get_all_groups(group_alias="partner")
                         selected_user_groups = st.multiselect("Select external User Groups", user_groups)

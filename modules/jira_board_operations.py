@@ -178,34 +178,6 @@ def assign_users_to_role_of_jira_board(projectIdOrKey, user_list, jira_roles,use
             return
     return
 
-## old fuc 
-# def assign_users_to_role_of_jira_board(projectIdOrKey, user_list, jira_roles):
-#     coe_group_id = "41aca64f-4ea1-4de6-b907-3b65395b3281"  # COE group ID
-
-#     for role in jira_roles:
-#         url = f"{JIRA_API_URL}/project/{projectIdOrKey}/role/{role}"
-#         data = {
-#             "user": user_list,  # List of users to be assigned,
-#             "group": [coe_group_id]  # Always include the COE group
-#         }
-#         try:
-#             response = requests.post(
-#                 url,
-#                 headers={**headers, 'Content-Type': 'application/json'},
-#                 auth=auth,
-#                 data=json.dumps(data)
-#             )
-
-#             if response.status_code in [200, 201]:
-#                 st.write(f"User(s) and COE group successfully assigned to role {role}")
-#             else:
-#                 st.write(f"Failed to assign user(s) to role {role}: {response.status_code} - {response.text}")
-#                 return  
-
-#         except requests.exceptions.RequestException as e:
-#             st.write(f"Error while assigning user(s) to role {role}: {e}")
-#             return
-#     return
 
 def create_jira_board(key, name, project_type, project_template,lead_account_id):
     url = f"{JIRA_API_URL}/project"
