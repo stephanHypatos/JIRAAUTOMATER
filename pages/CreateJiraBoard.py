@@ -3,10 +3,10 @@ from atlassian import Confluence
 import json
 import streamlit as st
 from jira import JIRA
-from modules.config import JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID,LEAD_USER_MAPPING,TEMPLATE_MAPPING,ASSIGNABLE_USER_GROUP,ADMINS,JIRA_URL
+from modules.config import JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID,LEAD_USER_MAPPING,TEMPLATE_MAPPING,ASSIGNABLE_USER_GROUP,ADMINS,JIRA_URL,JIRA_EXTERNAL_USER_ROLE_ID
 from modules.confluence_operations import get_existing_space_keys
 from modules.jira_operations import create_jira_issue,save_jira_project_key
-from modules.jira_board_operations import check_project_name_exists,assign_project_workflow_scheme,assign_issue_type_scheme,assign_issue_type_screen_scheme,assign_users_to_role_of_jira_board,create_jira_board,get_assignable_users,get_all_groups,assign_group_to_role
+from modules.jira_board_operations import check_project_name_exists,assign_project_workflow_scheme,assign_issue_type_scheme,assign_issue_type_screen_scheme,assign_users_to_role_of_jira_board,create_jira_board,get_assignable_users,get_all_groups,assign_group_to_role,get_all_role_ids
 
 if 'api_username' not in st.session_state:
         st.session_state['api_username'] = ''
@@ -35,7 +35,7 @@ def main():
 
     else:
         try:
-            jira_role_ids = [JIRA_ADMIN_ROLE_ID]
+            jira_role_ids = [JIRA_EXTERNAL_USER_ROLE_ID]
             confluence = Confluence(
                 url=JIRA_URL,
                 username=st.session_state['api_username'],
@@ -60,9 +60,6 @@ def main():
 
             # append Hypatos to create the new board name
             project_name = f"{project_name_raw} x Hypatos"
-
-            user_groups = get_all_groups()
-            selected_user_groups = st.multiselect("Select external User Groups", user_groups)
 
             if project_name and project_name_raw != '':
                 try:

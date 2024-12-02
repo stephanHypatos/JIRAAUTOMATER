@@ -26,6 +26,9 @@ JIRA_SUBTASK_ISSUE_TYPE = 'Sub-task'
 JIRA_TEMPLATE_BOARD_KEY = 'TD'
 JIRA_DEV_ROLE_ID='10071'
 JIRA_ADMIN_ROLE_ID='10002'
+JIRA_EXTERNAL_USER_ROLE_ID='10224'
+JIRA_SERVICE_DESK_TEAM_ID= '10013'
+JIRA_ATL_ADDONS_PROJECTS_ACCESS = '10003'
 TEMPLATE_WF_BOARD_ID='10029' ## TEMPLATE_BOARD_ID for the workflowscheme
 JIRA_API_URL = "https://hypatos.atlassian.net/rest/api/2"
 JIRA_API_URL_V3 = "https://hypatos.atlassian.net/rest/api/3"
@@ -33,7 +36,7 @@ JIRA_API_URL_V3 = "https://hypatos.atlassian.net/rest/api/3"
 EXCLUDED_BOARD_KEYS = {'CSLP','CSNEW','EM','ZZZ','SIM','BXIMH','DFM','SE','ROP','OKR', 'FIPR', 'REQMAN', 'MBZ', 'T3S', 'SKK', 'PMO', 'TESTC', 'DUR', 'PS', 'PE', 'TESTB', 'KATE', 'MDG', 'TESTA', 'UGI', 'TESTD', 'TOH', 'MON','DBFM'}
 # Assignable users in HY jira 
 ASSIGNABLE_USER_GROUP = 'CSR'
-DEFAULT_BOADR_GROUPS=["COE","administrators"]
+DEFAULT_BOARD_GROUPS=["COE","administrators"]
 # user who can be assigned as lead to a jira board
 LEAD_USER_MAPPING = {
             'elena.kuhn':'712020:9de34ad3-f71e-4093-bd04-354b08b4a982',

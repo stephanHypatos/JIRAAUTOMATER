@@ -4,7 +4,7 @@ from atlassian import Confluence
 import json
 import streamlit as st
 from jira import JIRA
-from modules.config import JIRA_URL,JIRA_API_URL,JIRA_API_URL_V3,TEMPLATE_WF_BOARD_ID,DEFAULT_BOADR_GROUPS
+from modules.config import JIRA_URL,JIRA_API_URL,JIRA_API_URL_V3,TEMPLATE_WF_BOARD_ID,DEFAULT_BOARD_GROUPS,JIRA_ADMIN_ROLE_ID
 
 ## credentials for JIRA library
 # Jira connection setup
@@ -147,13 +147,23 @@ def assign_issue_type_screen_scheme(jira_board_Id):
 
 
 def assign_users_to_role_of_jira_board(projectIdOrKey, user_list, jira_roles,user_groups):
-    default_groups= DEFAULT_BOADR_GROUPS
-    merged_assigned_groups = list(set(user_groups + default_groups))
-    
-    for role in jira_roles:
-        # Assign the COE group first
-        assign_groups_to_role(projectIdOrKey, merged_assigned_groups, role)
+    default_groups= DEFAULT_BOARD_GROUPS
+    default_jira_roles=[JIRA_ADMIN_ROLE_ID]
+    ##assign default user groups to project 
+    for role in default_jira_roles:
+        # Assign the COE and admin group 
+        assign_groups_to_role(projectIdOrKey, default_groups, role)
+
+    ##assign external user groups to project 
+    if user_groups:
+        for role in jira_roles:
+            assign_groups_to_role(projectIdOrKey, user_groups, role)
+
+
+    ##assign internal users to project 
+    for role in default_jira_roles:
         
+
         # Now assign the users
         url = f"{JIRA_API_URL}/project/{projectIdOrKey}/role/{role}"
         data = {
@@ -280,8 +290,6 @@ def assign_groups_to_role(projectIdOrKey, group_names, role):
         st.write(f"Error while assigning groups {group_names} to role {role}: {e}")
 
 
-
-
 def get_all_groups(group_alias=None):
     #If group_alias is "partner", only return groups with names starting with "ext-".
 
@@ -297,8 +305,26 @@ def get_all_groups(group_alias=None):
         # Apply filtering based on group_alias
         if group_alias == "partner":
             group_names = [name for name in group_names if name.startswith("ext-")]
+        
+        
+
         return group_names
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching groups: {e}")
         return []
-    
+
+# only a helper function to get all role ids 
+def get_all_role_ids():
+    #If group_alias is "partner", only return groups with names starting with "ext-".
+    projectIdOrKey = 'FNK'
+    ##Fetch all groups and return a list of group names.
+    url = f"{JIRA_API_URL}/project/{projectIdOrKey}/role"
+    try:
+        response = requests.get(url, headers=headers, auth=auth)
+        response.raise_for_status()
+        roles = response.json()
+        st.write(roles)
+        
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching groups: {e}")
+        return [] 
