@@ -61,6 +61,8 @@ def main():
             # append Hypatos to create the new board name
             project_name = f"{project_name_raw} x Hypatos"
 
+            user_groups = get_all_groups()
+            selected_user_groups = st.multiselect("Select external User Groups", user_groups)
 
             if project_name and project_name_raw != '':
                 try:

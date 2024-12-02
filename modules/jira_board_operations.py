@@ -226,11 +226,6 @@ def get_assignable_users(project_keys):
         return []
 
 
-def get_all_groups():
-    url = f"{JIRA_API_URL}/groups/picker"
-    response = requests.get(url, headers=headers, auth=auth)
-    response.raise_for_status()
-    return response.json().get("groups", [])
 
 
 def assign_group_to_role(projectIdOrKey, group_name, role):
@@ -293,7 +288,8 @@ def get_all_groups(group_alias=None):
     ##Fetch all groups and return a list of group names.
     url = f"{JIRA_API_URL}/groups/picker"
     try:
-        response = requests.get(url, headers=headers, auth=auth)
+        params = {"maxResults": 250}
+        response = requests.get(url, headers=headers, auth=auth,params=params)
         response.raise_for_status()
         groups = response.json().get("groups", [])
         # Extract only group names
@@ -305,3 +301,4 @@ def get_all_groups(group_alias=None):
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching groups: {e}")
         return []
+    
