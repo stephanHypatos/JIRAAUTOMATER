@@ -146,6 +146,36 @@ def assign_issue_type_screen_scheme(jira_board_Id):
     return
 
 
+def assign_permission_scheme(jira_board_Id):
+    # According to the Jira Cloud REST API docs, to assign a permission scheme 
+    # we use: PUT /rest/api/3/project/{projectIdOrKey}/permissionscheme
+    # Body format: {"id": "<permissionSchemeId>"}
+
+    url = f"{JIRA_API_URL_V3}/project/{jira_board_Id}/permissionscheme"
+
+    payload = json.dumps({
+        "id": "10087"  # Permission scheme ID
+    })
+
+    try:
+        response = requests.request(
+            "PUT",
+            url,
+            data=payload,
+            headers=headers,
+            auth=auth
+        )
+        if response.status_code == 200:
+            st.write(f'The request was successful. Permission Scheme assigned to Jira Project {jira_board_Id}')
+        else:
+            st.error(f"Failed to assign Permission Scheme. HTTP Status Code: {response.status_code}, Response: {response.text}")
+
+    except Exception as e:
+        st.error(f"Error occurred: {str(e)}")
+
+    return
+
+
 def assign_users_to_role_of_jira_board(projectIdOrKey, user_list, jira_roles,user_groups):
     default_groups= DEFAULT_BOARD_GROUPS
     default_jira_roles=[JIRA_ADMIN_ROLE_ID]
