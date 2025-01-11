@@ -3,7 +3,7 @@ import streamlit as st
 from jira import JIRA
 import os
 from modules.config import JIRA_URL,ADMINS,JIRA_TEMPLATE_BOARD_KEY
-from modules.jira_operations import get_project_keys,get_users_from_jira_project,get_jira_issue_type_project_key_with_displayname,display_issue_summaries,get_jira_issue_type_account_key,update_parent_key,save_jira_account_type_parent,save_jira_project_key
+from modules.jira_operations import get_project_keys,get_users_from_jira_project,get_jira_issue_type_project_key_with_displayname,display_issue_summaries,get_jira_issue_type_account_key,update_parent_key,save_jira_account_type_parent,save_jira_project_key,get_jira_issue_type_project_key,update_parent_issue_type_project,delete_newly_created_project
 from modules.jira_clone_issue_operations import get_time_delta,clone_issue_recursive_first_pass,add_issue_links,update_project_name
 if 'api_username' not in st.session_state:
      st.session_state['api_username']= ''
@@ -42,6 +42,7 @@ def main():
         
         target_project = st.selectbox("Select Target Board Key:", jira_board, index=0)
         
+        
         # save the target_jira_board key to session state
         save_jira_project_key(target_project)
 
@@ -55,6 +56,13 @@ def main():
             # Select Project Parent (most likely an Issue Type Account)
             parent_issue_key = st.selectbox("Select the issue type 'Account' to which your project should be attached:", parent_keys, index=0)
             save_jira_account_type_parent(parent_issue_key)
+
+            # Optional Select new Project Issue Type 
+            project_keys = get_jira_issue_type_project_key_with_displayname(jira,target_project)
+            project_keys_names = [project['summary'] for project in project_keys]
+            new_project_issue_key = st.selectbox("Optional If you like to attach the new project to an already existing Project", project_keys_names, index=0)
+            selected_issue_type_project_key = next((project for project in project_keys if project['summary'] == new_project_issue_key), None)            
+            
 
         if st.button("Clone Issues"):
             if source_issue_key and target_project and project_assignee and project_start_date:
@@ -83,7 +91,19 @@ def main():
                         except Exception as e:
                             st.error(f"An error occurred: {str(e)}")        
 
-                    st.success(f"Project: {st.session_state['new_project_name']} Issue Key: {cloned_issues[source_issue_key].key} has been created and assigned to {project_assignee}.")
+                    # Step 5: Optional Update Project Issue Type 
+                    if new_project_issue_key is not None:
+                        try:
+                            update_parent_issue_type_project(jira, cloned_issues[source_issue_key].key,selected_issue_type_project_key["key"])
+                            delete_newly_created_project(jira,cloned_issues[source_issue_key].key)                
+                            st.success(f"Project: {st.session_state['new_project_name']} Issue Key: {cloned_issues[source_issue_key].key} has been created and 
+                                       
+                                       
+                                       and assigned to {project_assignee}.")
+                        except Exception as e: 
+                            st.warning('Unable to change the parent project Id')
+                    else:        
+                        st.success(f"Project: {st.session_state['new_project_name']} Issue Key: {cloned_issues[source_issue_key].key} has been created and assigned to {project_assignee}.")
                     
                     # Step 5: clear the session state 
                     st.session_state['new_project_name'] = ''

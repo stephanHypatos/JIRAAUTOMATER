@@ -163,20 +163,31 @@ def get_children_issues(jira, issue_key):
         return children_issues
     return
 
-# update the parent issue type project of one or more epics 
-def update_parent_issue_type_project(jira, current_project_issue_key,new_project_issue_key):
-    # issue = jira.issue(issue_key)
-    # List to store children issues
-    children_issues = []
-    # get all children epics of a given issue type project 
-    jql = f'"parent" = {current_project_issue_key}'
-    children_issues = list(jira.search_issues(jql))
-    
+# updates the parent issue type project of one or more epics 
+def update_parent_issue_type_project(jira, current_project_issue_key, new_project_issue_key):
+    """
+    Update the parent of all issues currently having `current_project_issue_key`
+    as their parent, so that they will point to `new_project_issue_key` instead.
+    (For team-managed/next-gen projects)
+    """
+    jql = f'parent = {current_project_issue_key}'
+    try:
+        children_issues = jira.search_issues(jql)
+    except Exception as e:
+        st.write(f"Failed to search issues with JQL '{jql}'")
+        return
+
     for child_issue in children_issues:
-        # change parent issue to new issue 
-        issue = jira.issue(child_issue)
-        issue.update(fields={'parent': {'key': new_project_issue_key}})
-        
+        child_issue.update(fields={'parent': {'key': new_project_issue_key}})
+    return
+
+
+def delete_newly_created_project(jira,issue_key):
+    try:
+        issue = jira.issue(issue_key)
+        issue.delete(deleteSubtasks=True)
+    except Exception as e:
+        st.warning(f"Could not delete newly created issue type project: {e}")
     return
 
 # get all child issues of a jira issue
