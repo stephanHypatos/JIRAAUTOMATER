@@ -163,6 +163,22 @@ def get_children_issues(jira, issue_key):
         return children_issues
     return
 
+# update the parent issue type project of one or more epics 
+def update_parent_issue_type_project(jira, current_project_issue_key,new_project_issue_key):
+    # issue = jira.issue(issue_key)
+    # List to store children issues
+    children_issues = []
+    # get all children epics of a given issue type project 
+    jql = f'"parent" = {current_project_issue_key}'
+    children_issues = list(jira.search_issues(jql))
+    
+    for child_issue in children_issues:
+        # change parent issue to new issue 
+        issue = jira.issue(child_issue)
+        issue.update(fields={'parent': {'key': new_project_issue_key}})
+        
+    return
+
 # get all child issues of a jira issue
 def get_children_issues_ticket_template(jira, issue_key):
     issue = jira.issue(issue_key)
