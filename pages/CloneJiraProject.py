@@ -60,7 +60,8 @@ def main():
             # Optional Select new Project Issue Type 
             project_keys = get_jira_issue_type_project_key_with_displayname(jira,target_project)
             project_keys_names = [project['summary'] for project in project_keys]
-            new_project_issue_key = st.selectbox("Optional If you like to attach the new project to an already existing Project", project_keys_names, index=0)
+            project_keys_names.insert(0, None)
+            new_project_issue_key = st.selectbox("Optional. If you like to attach the new project to an already existing Project, select it here:", project_keys_names, index=0)
             selected_issue_type_project_key = next((project for project in project_keys if project['summary'] == new_project_issue_key), None)            
             
 
@@ -96,10 +97,8 @@ def main():
                         try:
                             update_parent_issue_type_project(jira, cloned_issues[source_issue_key].key,selected_issue_type_project_key["key"])
                             delete_newly_created_project(jira,cloned_issues[source_issue_key].key)                
-                            st.success(f"Project: {st.session_state['new_project_name']} Issue Key: {cloned_issues[source_issue_key].key} has been created and 
+                            st.success(f"Project Issues have been created and attached to the Project: {selected_issue_type_project_key['summary']}")
                                        
-                                       
-                                       and assigned to {project_assignee}.")
                         except Exception as e: 
                             st.warning('Unable to change the parent project Id')
                     else:        
