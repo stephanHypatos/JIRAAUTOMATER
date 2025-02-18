@@ -23,15 +23,14 @@ def main():
     jira_api_token = st.session_state['api_password']
     jira = JIRA(server=jira_url, basic_auth=(jira_username, jira_api_token))
     #Other vars
-    admins = ADMINS
+    
     delta_days = None
     if st.session_state['api_password'] == '':
             st.warning("Please log in first.")
-    elif st.session_state['api_username'] not in admins:
-        st.title("❌ Sorry, you dont have access to this page.")
+    
     else: 
-        st.title("Jira Issue Type Project Creator")
-        
+        st.title("Clone Jira  Issue Type Project")
+        st.warning('Before you proceed, make sure that your user is added to the People section of the Jira board to which you plan on cloning the project to.')
         project_start_date=st.date_input("Enter the project startdate:", value=None,format="YYYY-MM-DD")
         
         jira_template_projects = get_jira_issue_type_project_key_with_displayname(jira,JIRA_TEMPLATE_BOARD_KEY)
