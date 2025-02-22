@@ -36,10 +36,7 @@ def main():
     if st.session_state['api_password'] == '':
         st.warning("Please log in first.")
         return  # Exit the function if not logged in
-    elif st.session_state['api_username'] not in ADMINS:
-        st.warning("❌ Sorry, you don't have access to this page. Ask an admin (J.C or S.K.)")
-        return
-
+        
     try:
         # Authenticate only once and store in session state
         if not st.session_state['jira']:
