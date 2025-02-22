@@ -55,26 +55,6 @@ TICKET_TEMPLATES = [
         "issue_id": "TMP-591",  # Reference to an existing Jira issue
         "duration":1
     },
-     {
-        "project_key": "CC",
-        "issue_id": "COE-1151",  # Reference to an existing Jira issue
-        "duration":1
-    },
-    {
-        "project_key": "CC",
-        "issue_id": "COE-991",  # Reference to an existing Jira issue
-        "duration":1
-    },
-    {
-        "project_key": "CC",
-        "issue_id": "COE-998",  # Reference to an existing Jira issue
-        "duration":1
-    },
-    {
-        "project_key": "CC",
-        "issue_id": "DF-204",  # Reference to an existing Jira issue
-        "duration":1
-    },
     {
         "project_key": "CC",  # Project key for Customer Care
         "summary": "Just a generique template to showcase",
