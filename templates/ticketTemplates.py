@@ -2,34 +2,57 @@
 
 TICKET_TEMPLATES = [
     {
-        "project_key": "CC",
-        "issue_id": "COE-989",  # Reference to an existing Jira issue
+        "project_key": "TMP",
+        "issue_id": "TMP-580",  # Reference to an existing Jira issue
         "duration":1
     },
     {
-        "project_key": "CC",
-        "issue_id": "COE-965",  # Reference to an existing Jira issue
+        "project_key": "TMP",
+        "issue_id": "TMP-583",  # Reference to an existing Jira issue
         "duration":1
     },
     {
-        "project_key": "CC",
-        "issue_id": "COE-967",  # Reference to an existing Jira issue
+        "project_key": "TMP",
+        "issue_id": "TMP-584",  # Reference to an existing Jira issue
+        "duration":1
+    },
+    {
+        "project_key": "TMP",
+        "issue_id": "TMP-585",  # Reference to an existing Jira issue
         "duration":1
     },
     
      {
-        "project_key": "CC",
-        "issue_id": "COE-968",  # Reference to an existing Jira issue
+        "project_key": "TMP",
+        "issue_id": "TMP-586",  # Reference to an existing Jira issue
+        "duration":1
+    },
+
+     {
+        "project_key": "TMP",
+        "issue_id": "TMP-587",  # Reference to an existing Jira issue
+        "duration":1
+    },
+
+     {
+        "project_key": "TMP",
+        "issue_id": "TMP-588",  # Reference to an existing Jira issue
         "duration":1
     },
      {
-        "project_key": "CC",
-        "issue_id": "COE-990",  # Reference to an existing Jira issue
+        "project_key": "TMP",
+        "issue_id": "TMP-589",  # Reference to an existing Jira issue
         "duration":1
     },
-      {
-        "project_key": "CC",
-        "issue_id": "COE-994",  # Reference to an existing Jira issue
+         
+     {
+        "project_key": "TMP",
+        "issue_id": "TMP-590",  # Reference to an existing Jira issue
+        "duration":1
+    },
+    {
+        "project_key": "TMP",
+        "issue_id": "TMP-591",  # Reference to an existing Jira issue
         "duration":1
     },
      {
