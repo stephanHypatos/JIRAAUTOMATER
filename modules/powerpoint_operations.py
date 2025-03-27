@@ -39,9 +39,11 @@ def create_powerpoint(df,project_issue_key):
         # Create a new slide
         new_slide = presentation.slides.add_slide(slide_layout)
         title_shape = new_slide.shapes.title
+        if title_shape is not None:
         #title_shape.text = f"Actions Overview ({len(issues)} issues)"
-        title_shape.text = f"Actions Overview"
-
+            title_shape.text = f"Actions Overview"
+        else:
+            st.warning("Warning: The slide layout doesn't contain a title placeholder.")
         # Add data to the current slide
         add_data_to_slide(new_slide, rows_to_display)
 
@@ -110,8 +112,12 @@ def create_powerpoint_presentation_jql(jira, jql):
         # Create a new slide
         new_slide = presentation.slides.add_slide(slide_layout)
         title_shape = new_slide.shapes.title
+        if title_shape is not None:
+
         #title_shape.text = f"Actions Overview ({len(issues)} issues)"
-        title_shape.text = f"Actions Overview"
+            title_shape.text = f"Actions Overview"
+        else:
+            st.warning("Warning: The slide layout doesn't contain a title placeholder.")
 
         # Add data to the current slide
         add_data_to_slide(new_slide, rows_to_display)
