@@ -133,8 +133,7 @@ if st.session_state['jira_project_key']:
                             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
                         )
                 except Exception as e:
-                    st.error(f"Error creating the report: {e}")
-                    st.text("Details:")
+                    st.error(f"Error creating the report: {e}")              
                     
         else:
             st.warning("No filtered data to generate a report. Please apply filters first.")
