@@ -1,8 +1,6 @@
 ## TO do 
 ## add external partner account ids 
-## add customfileds to jira 
-## update customfields in the code - CUSTOMFIELD_BUDGET_MAP
-##  create documentation on how to use 
+##  create documentation on how to use
 
 # TimeReport.py  –  single-page hours report + budget check
 # =========================================================
@@ -26,11 +24,12 @@ from modules.jira_operations import (
     display_issue_summaries,
 )
 
-# group → customfield holding planned hours
-CUSTOMFIELD_BUDGET_MAP: Dict[str, str] = {
-    "HYPATOS": "customfield_10290",
-    "EY":       "customfield_10127",
-}
+
+BUDGET_FIELD_IDS = [
+    "customfield_10484",   # Hypatos budget (stays static) customfield_10484 called Hypatos Budget in Jira 
+    "customfield_10485",   # Generic “partner budget” field called Partner Budget in Jira 
+]
+PARTNER_NAME_FIELD = "customfield_10312"   # drop down field  on the parent issuein Jira called Partner
 
 # static fallback for hidden e-mails  (safe if the file is missing/empty)
 try:
@@ -63,6 +62,22 @@ _cache = (
     if hasattr(st, "cache")
     else st.experimental_memo
 )
+
+   # ------------------------------------------------------------------
+# helper: extract text from dropdown/str field
+# ------------------------------------------------------------------
+def field_value_as_str(cf_value) -> str:
+        """
+        • If the field is a single-select option, return option.value.
+        • If it’s already a plain string, return it.
+        • Otherwise return '' so .strip() will give ''.
+        """
+        if cf_value is None:
+            return ""
+        # Jira option objects have a 'value' attr (and often 'id', 'self', …)
+        if hasattr(cf_value, "value"):
+            return str(cf_value.value)
+        return str(cf_value)
 
 # ────────────────────────────────────────────────────────────────
 # 🔧  domain → group helper
@@ -252,23 +267,34 @@ def app(jira: JIRA) -> None:
     st.subheader(caption)
     st.dataframe(grouped, use_container_width=True)
 
-    # ── budget check ───────────────────────────────────────────
-    st.subheader("📊 Budget status")
-    budgets: Dict[str, int] = {}
-    try:
-        fields = ",".join(CUSTOMFIELD_BUDGET_MAP.values())
-        parent_issue = jira.issue(parent_key, fields=fields)
-        for grp, cf in CUSTOMFIELD_BUDGET_MAP.items():
-            raw = getattr(parent_issue.fields, cf, None)
-            try:
-                hours = int(float(raw)) if raw not in (None, "") else None
-            except (TypeError, ValueError):
-                hours = None
-            if hours is not None:
-                budgets[grp] = hours
-    except Exception as e:
-        st.warning(f"Could not fetch budgets: {e}")
 
+   # ── budget check ──────────────────────────────────────────────
+    st.subheader("📊 Budget status")
+
+    budgets: Dict[str, int] = {}
+
+    try:
+        all_fields = ",".join(BUDGET_FIELD_IDS + [PARTNER_NAME_FIELD])
+        parent = jira.issue(parent_key, fields=all_fields)
+
+        # 1) fixed HYPATOS budget
+        hypatos_raw = getattr(parent.fields, "customfield_10484", None)
+        if hypatos_raw not in (None, ""):
+            budgets["HYPATOS"] = int(float(hypatos_raw))
+
+        # 2) dynamic partner budget (dropdown)
+        partner_obj = getattr(parent.fields, PARTNER_NAME_FIELD, None)
+        partner_name = field_value_as_str(partner_obj).strip().upper()
+        
+
+        if partner_name:
+            partner_budget_raw = getattr(parent.fields, "customfield_10485", None)
+            if partner_budget_raw not in (None, ""):
+                budgets[partner_name] = int(float(partner_budget_raw))
+
+    except Exception as exc:
+        st.warning(f"Could not read budgets from parent issue: {exc}")
+    
     if not budgets:
         st.info("No budget fields on this parent issue.")
     else:
@@ -286,6 +312,7 @@ def app(jira: JIRA) -> None:
                 st.success(f"{grp}: within budget ({spend}/{limit} h, {diff} left)")
             else:
                 st.error(f"{grp}: **{abs(diff)} h over** ({spend}/{limit} h)")
+
 
     # ── raw & export ───────────────────────────────────────────
     with st.expander("Show raw work-logs"):
