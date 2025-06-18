@@ -196,6 +196,43 @@ def app(jira: JIRA) -> None:
         st.session_state["api_username"],
         st.session_state["api_password"],
     )
+    
+    with st.expander('Documentation'):
+     st.markdown(
+        """ 
+        ### Purpose  
+        This report shows **all time that has been logged** on every issue underneath a chosen *Project* parent issue, split by **group** (EY / HYPATOS / …) and by **author**.  
+        It also tells you whether the work is **within the hour-budget** that was planned for the project.
+
+        ### Jira fields that MUST be filled on the parent “Project” issue  
+        | Field on the Project issue | Jira custom-field id | Why it matters |
+        | -------------------------- | ------------------- | -------------- |
+        | **Partner** (dropdown)     | `customfield_10312` | Tells the app *which* external partner (EY / PwC / KPMG …) the “Partner Budget” belongs to. |
+        | **Hypatos Budget**         | `customfield_10484` | Planned hours for internal Hypatos work. |
+        | **Partner Budget**         | `customfield_10485` | Planned hours for the partner selected above. |
+
+        If any of these are empty, the budget check cannot run for that project.
+
+        ### How to run the report  
+        1. **Log in** with your Jira API credentials (top left of the app).  
+        2. In *Time Tracking Report*  
+           * pick the **Jira board** that contains your Project issue;  
+           * select the **Project** issue itself.  
+        3. The page will automatically  
+           * fetch every child issue,  
+           * download all work-logs,  
+           * detect each author’s group,  
+           * show totals and a green/red budget indicator.  
+        4. Use the **sidebar** to filter by group, author or date, and switch between grouping modes.  
+        5. Click **“Download filtered XLSX”** to export whichever slice of data you’re viewing.
+
+        ### Missing or mis-categorised users?  
+        If a user’s e-mail is hidden by Jira, add their **account ID** and desired group to  
+        `modules/external_groups.EXTERNAL_ACCOUNT_GROUPS`, then refresh the page.
+
+        """
+    )
+     
     board_key = st.selectbox("Select Jira Board Key:", boards, index=0)
     if not board_key:
         st.stop()
@@ -236,7 +273,7 @@ def app(jira: JIRA) -> None:
 
     mode = st.sidebar.radio(
         "Group results by",
-        ["Group × Date", "Group only", "Author × Date", "Author only"],
+        ["Group only", "Group × Date", "Author × Date", "Author only"],
         index=0,
     )
 
