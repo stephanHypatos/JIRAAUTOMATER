@@ -15,7 +15,7 @@ EXCEL_TIMELINE_ELEMENTS_POC = 'timeline_v2_POC.xlsx'
 TIMELINE_POWER_POINT_SLIDE_POC = 'timeline_v2_POC.pptx'
 
 # Jira connection settings
-ADMINS = ['stephan.kuche@hypatos.ai','jorge.costa@hypatos.ai','hugo.oliveira@hypatos.ai','stephankuche@gmail.com','alex.menuet@hypatos.ai']
+ADMINS = ['olga.milcent@hypatos.ai','stephan.kuche@hypatos.ai','jorge.costa@hypatos.ai','hugo.oliveira@hypatos.ai','stephankuche@gmail.com','alex.menuet@hypatos.ai']
 JIRA_URL = 'https://hypatos.atlassian.net/'
 JIRA_ACCOUNT_ISSUE_TYPE = 'Account'
 JIRA_PROJECT_ISSUE_TYPE = 'Project'
