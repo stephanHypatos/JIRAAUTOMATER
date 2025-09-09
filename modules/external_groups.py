@@ -31,24 +31,23 @@ EXTERNAL_ACCOUNT_GROUPS: dict[str, str] = {
     "712020:20406f95-2567-478f-b526-2b22fdd6eae5": "EY GERMANY", # "Janik Dausend",
 
     # KPMG external contractors
-    "712020:fe650ad4-f5fd-4a76-b12e-2cad83b46228": "KPMG", # eligio
-    "5dccf98b500b7d0dfdcade51": "KPMG",  # "Hans Schut",
-    
-    "712020:95231b9d-7447-450c-9bd3-6bd627527c64": "KPMG",  # "Lard van Zuylen
-    "712020:635ac5c6-fe6a-405b-9a71-6ea51c896a52": "KPMG",  # "Boekstaaf.hosny
-    "712020:05a54db0-8d56-4b8a-8199-a2b2e9fde44c": "KPMG",  # "Lalescu, Nicolle",
+    "712020:fe650ad4-f5fd-4a76-b12e-2cad83b46228": "KPMG NL", # eligio
+    "5dccf98b500b7d0dfdcade51": "KPMG NL",  # "Hans Schut",
+    "712020:95231b9d-7447-450c-9bd3-6bd627527c64": "KPMG NL",  # "Lard van Zuylen
+    "712020:635ac5c6-fe6a-405b-9a71-6ea51c896a52": "KPMG NL",  # "Boekstaaf.hosny
+    "712020:05a54db0-8d56-4b8a-8199-a2b2e9fde44c": "KPMG NL",  # "Lalescu, Nicolle",
 
     # PWC external contractors
-    "712020:e48a7d13-5774-4e2d-978f-10c85f3e2e96": "PWC", # "Filip Faryna",
-    "70121:f6b18ee2-28c5-4ec6-afb4-89ead2d89202": "PWC", #Katrin
-    "712020:18850c1b-7e62-442f-a9e8-097bc112a6e4": "PWC", #"Desiree Gansch",
-    "712020:3ac6dbc9-4279-40f5-b5fd-1ed600c5e68d": "PWC", # "Jadwiga Szewczuk",
-    "5ea694b586d01b0b7dc8d855": "PWC", #"Jan Wamhoff",
-    "6371e16e5fc160544e16e6d3": "PWC",  #"Malgorzata Lipiarz",
-    "62d7cf8896f239ca6ae81527": "PWC", #"Niklas van der Linde",
-    "63bc61a18a7d2f693bf68893": "PWC", #"stol.marcin@pwc.com",
-    "70121:d36f9367-a04b-408a-ac1e-bda7151054c9":"PWC",  #"niklas.sengteller",
-    "712020:f897f73e-1954-4b7d-9d43-faf0884a10ad":"PWC" #"Victoria Knopf",
+    "712020:e48a7d13-5774-4e2d-978f-10c85f3e2e96": "PWC GERMANY", # "Filip Faryna",
+    "70121:f6b18ee2-28c5-4ec6-afb4-89ead2d89202": "PWC GERMANY", #Katrin
+    "712020:18850c1b-7e62-442f-a9e8-097bc112a6e4": "PWC GERMANY", #"Desiree Gansch",
+    "712020:3ac6dbc9-4279-40f5-b5fd-1ed600c5e68d": "PWC GERMANY", # "Jadwiga Szewczuk",
+    "5ea694b586d01b0b7dc8d855": "PWC GERMANY", #"Jan Wamhoff",
+    "6371e16e5fc160544e16e6d3": "PWC GERMANY",  #"Malgorzata Lipiarz",
+    "62d7cf8896f239ca6ae81527": "PWC GERMANY", #"Niklas van der Linde",
+    "63bc61a18a7d2f693bf68893": "PWC GERMANY", #"stol.marcin@pwc.com",
+    "70121:d36f9367-a04b-408a-ac1e-bda7151054c9":"PWC GERMANY",  #"niklas.sengteller",
+    "712020:f897f73e-1954-4b7d-9d43-faf0884a10ad":"PWC GERMANY" #"Victoria Knopf",
     
 }
 
