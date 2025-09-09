@@ -13,19 +13,19 @@ EXTERNAL_ACCOUNT_GROUPS: dict[str, str] = {
     # EY external contractors
     "712020:aab56863-b848-42e3-9564-2d6f5ae4b591": "EY GERMANY", # m schütz
     "712020:5d66a452-3d4a-426c-900b-b04170734bc1": "EY GERMANY",  # a schummer 
-    "712020": "EY", # m schütz
-    "62d686240824ad5c19c6c86c": "EY", # a schummer 
+    "712020": "EY GERMANY", # m schütz
+    "62d686240824ad5c19c6c86c": "EY GERMANY", # a schummer 
     "712020:731b39c7-91e3-443b-a7ae-1065a1cead7d": "EY GERMANY", # Maniwh
     "712020:562d8f98-f0f3-402e-b725-0bd490a624b3": 'EY GERMANY', # Lynn
     "712020:1cb5d869-7511-45ec-9df6-c8e54fdc014c": 'EY GERMANY', # Junior
-    "5dd52348e7ceef0eed1f010f": "EY", # "Christopher.Rautzenberg"
+    "5dd52348e7ceef0eed1f010f": "EY GERMANY", # "Christopher.Rautzenberg"
     "712020:3042d035-7aec-46ae-bc13-b71d01f9a9e1": "EY GERMANY", # "ravi.ravi",
     "712020:51b44178-481b-44a2-8d53-61f582d1e876": "EY GERMANY", # " "Tim Brake",
     "712020:731b39c7-91e3-443b-a7ae-1065a1cead7d": "EY GERMANY", # " "Manish
     "712020:70c90d00-8479-4856-a4fe-81f9c56447b3": "EY GERMANY", # monica
     "712020:4a40e412-8855-4d08-ad30-47e4c7a55971": "EY GERMANY", # "Kriti Sood",
     "712020:2668348d-b4fc-49fa-b23c-48a7797860dd": "EY GERMANY", #"Shahab Akhtar Khan",
-    "631069d26856bdd60a9ed28a": "EY", #"Andreas.Muzzu",
+    "631069d26856bdd60a9ed28a": "EY GERMANY", #"Andreas.Muzzu",
      "712020:0d01dd6e-d274-4c92-a6ef-6c83800aca86": "EY GERMANY", #  "Karen Gorantsyan",
     "712020:8e08af8b-5b10-4fe6-a777-c5982b17a61d": "EY GERMANY", # "Diyi Huang",
     "712020:20406f95-2567-478f-b526-2b22fdd6eae5": "EY GERMANY", # "Janik Dausend",
