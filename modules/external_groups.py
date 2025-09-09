@@ -17,7 +17,7 @@ EXTERNAL_ACCOUNT_GROUPS: dict[str, str] = {
     "62d686240824ad5c19c6c86c": "EY", # a schummer 
     "712020:731b39c7-91e3-443b-a7ae-1065a1cead7d": "EY", # Maniwh
     "712020:562d8f98-f0f3-402e-b725-0bd490a624b3": 'EY', # Lynn
-    "712020:1cb5d869-7511-45ec-9df6-c8e54fdc014c": 'EY', # JUnior
+    "712020:1cb5d869-7511-45ec-9df6-c8e54fdc014c": 'EY', # Junior
     "5dd52348e7ceef0eed1f010f": "EY", # "Christopher.Rautzenberg"
     "712020:3042d035-7aec-46ae-bc13-b71d01f9a9e1": "EY", # "ravi.ravi",
     "712020:51b44178-481b-44a2-8d53-61f582d1e876": "EY", # " "Tim Brake",
@@ -28,6 +28,7 @@ EXTERNAL_ACCOUNT_GROUPS: dict[str, str] = {
     "631069d26856bdd60a9ed28a": "EY", #"Andreas.Muzzu",
      "712020:0d01dd6e-d274-4c92-a6ef-6c83800aca86": "EY", #  "Karen Gorantsyan",
     "712020:8e08af8b-5b10-4fe6-a777-c5982b17a61d": "EY", # "Diyi Huang",
+    "712020:20406f95-2567-478f-b526-2b22fdd6eae5": "EY", # "Janik Dausend",
 
     # KPMG external contractors
     "712020:fe650ad4-f5fd-4a76-b12e-2cad83b46228": "KPMG", # eligio
