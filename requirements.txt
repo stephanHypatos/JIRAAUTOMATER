@@ -1,11 +1,10 @@
 streamlit<=1.38.0
 pandas<=2.2.2
 python-pptx
-jira<=3.8.0
 numpy<=2.1.1
 python-dateutil
 openpyxl
-atlassian-python-api<=3.41.16
+xlsxwriter<=3.2.0
 beautifulsoup4<=4.12.3
 requests<=2.32.4
 requests-oauthlib<=2.0.0

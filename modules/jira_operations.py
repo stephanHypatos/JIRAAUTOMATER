@@ -1,13 +1,38 @@
-from jira import JIRA
+from __future__ import annotations
+from typing import Any, Dict, List, Optional, Tuple, Iterable
+from collections import OrderedDict
 import pandas as pd
 import streamlit as st
 import math
+import requests
 from datetime import datetime,timedelta
 from pptx import Presentation
 from pptx.util import Inches
 from modules.config import JIRA_ACCOUNT_ISSUE_TYPE,JIRA_PROJECT_ISSUE_TYPE,JIRA_EPIC_ISSUE_TYPE, JIRA_TASK_ISSUE_TYPE, JIRA_SUBTASK_ISSUE_TYPE,JIRA_URL,EXCEL_FILE_PATH,EXCEL_FILE_PATH_BLUE_PRINT_PILOT,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT,EXCEL_FILE_PATH_BLUE_PRINT_POC,EXCEL_FILE_PATH_BLUE_PRINT_TEST,EXCEL_FILE_PATH_BLUE_PRINT_ROLLOUT_WIL,JIRA_TEMPLATE_BOARD_KEY,EXCLUDED_BOARD_KEYS
 from modules.utils import normalize_NaN, normalize_date, calculate_end_date
+from .jira_v3 import JiraV3
 
+
+class JiraOperations:
+    def __init__(self, jira_instance: JiraV3):
+        self.jira = jira_instance
+
+    def get_all_projects(self) -> List[Dict[str, Any]]:
+        """Get all projects from Jira"""
+        return self.jira.project_search_all()
+
+    def get_project_issues(self, project_key: str) -> List[Dict[str, Any]]:
+        """Get all issues for a specific project"""
+        jql = f'project = "{project_key}"'
+        return self.jira.search_jql_all(jql, fields=["summary", "description", "issuetype", "priority"])
+
+    def get_issue_details(self, issue_key: str) -> Dict[str, Any]:
+        """Get details for a specific issue"""
+        jql = f'issue = "{issue_key}"'
+        results = self.jira.search_jql(jql, fields=["*all"])
+        if results.get("issues"):
+            return results["issues"][0]
+        return {}
 
 ## generice Jira Auth Function that returns a new instance of JIRA
 def authenticate(jira_url,jira_email,jira_api_token):
@@ -29,17 +54,122 @@ def save_credentials(username, password):
 
 # JIRA Project relelated Functions
 
-# Function to update the parent issue key of a given issue
-def update_parent_key(jira,issue_key, new_parent_key):
-    # Get the issue object for the given issue key
-    issue = jira.issue(issue_key)
-    # Update the parent field with the new parent issue key
-    issue.update(fields={'parent': {'key': new_parent_key}})
-    st.write(f"Parent key of issue {issue_key} updated to {new_parent_key}")
+def get_project_keys(jira_url: str, username: str, password: str) -> List[str]:
+    """
+    Return a list of business (company-managed) project keys, excluding certain predefined keys.
+    Adds a blank "" entry at the start for selectbox compatibility.
+    Replaces python-jira .projects() with /rest/api/3/project/search.
+    """
+    client = JiraV3(jira_url, username, password)
+    projects = client.project_search_all()
+
+    excluded_keys = {
+        "BXIMH","DFM","SE","ROP","OKR","FIPR","REQMAN","MBZ","T3S","SKK",
+        "PMO","TESTC","DUR","PS","PE","TESTB","KATE","MDG","TESTA","UGI",
+        "TESTD","TOH","MON","DBFM","CUSOPS"
+    }
+
+    # Filter for company-managed ("business") projects and exclude unwanted keys
+    company_managed = [
+        p["key"] for p in projects
+        if p.get("projectTypeKey") == "business" and p.get("key") not in excluded_keys
+    ]
+
+    select_options = [""]
+    select_options.extend(sorted(company_managed))  # optional sort for stable UI
+
+    return select_options
+
+def get_jira_issue_type_project_key_with_displayname(
+    client: JiraV3,
+    project_key: str,
+    issue_type_name: str = "Project",
+    limit: int = 50,
+) -> List[Dict[str, str]]:
+    """
+    Return [{'key','summary'}] for issues of a given issuetype inside the given project.
+    Uses /rest/api/3/search/jql (param name is 'jql').
+    """
+    jql = f'project = "{project_key}" AND issuetype = "{issue_type_name}" ORDER BY created DESC'
+    data = client.search_jql(jql, fields=["summary"], max_results=limit)
+    issues = data.get("issues", []) or []
+    return [{"key": i["key"], "summary": i.get("fields", {}).get("summary", "")} for i in issues if i.get("key")]
+
+
+def get_template_projects(client: JiraV3, key_prefix: str) -> List[Dict[str, str]]:
+    """
+    Fetches a list of Jira projects whose keys start with the specified prefix.
+
+    #Args:
+        client (JiraV3): An instance of the JiraV3 client used to interact with the Jira API.
+        key_prefix (str): The prefix to filter project keys by (case-insensitive).
+
+    Returns:
+        List[Dict[str, str]]: A list of dictionaries, each containing the 'key' and 'name' of a matching project.
+    
+    Return [{'key','name'}] for projects whose key starts with key_prefix.
+    """
+    projects = client.project_search_all(query=key_prefix, limit=200)
+    return [
+        {"key": p["key"], "name": p["name"]}
+        for p in projects
+        if p.get("key","").upper().startswith(key_prefix.upper())
+    ]
+
+def project_has_issue_type(client: JiraV3, project_key: str, issue_type_name: str) -> bool:
+    """
+    Checks if a given Jira project contains at least one issue of a specified issue type.
+
+    Args:
+        client (JiraV3): An instance of the JiraV3 client used to interact with the Jira API.
+        project_key (str): The key of the Jira project to search within.
+        issue_type_name (str): The name of the issue type to check for.
+
+    Returns:
+        bool: True if the project contains at least one issue of the specified issue type, False otherwise.
+    """
+    jql = f'project = "{project_key}" AND issuetype = "{issue_type_name}"'
+    data = client.search_jql(jql, fields=["issuetype"], max_results=1)
+    return len(data.get("issues", [])) > 0
+
+def update_parent_key(client: JiraV3, issue_key: str, new_parent_key: str) -> None:
+    """
+    Set/replace the parent of an issue using Jira Cloud REST v3.
+    Works for issue types that support a parent (e.g., subtasks, issues under an Epic/Portfolio parent).
+    Tries by key first; if Jira complains, falls back to using the parent's numeric id.
+    """
+    if not (issue_key and new_parent_key):
+        st.error("update_parent_key: issue_key and new_parent_key are required.")
+        return
+
+    # 1) Try with the parent KEY (most tenants accept this)
+    try:
+        client.update_issue_fields(issue_key, {"parent": {"key": new_parent_key}})
+        st.write(f"Parent key of issue {issue_key} updated to {new_parent_key}")
+        return
+    except Exception as e_key:
+        # 2) Fallback: resolve parent's numeric ID and try with {"id": ...}
+        try:
+            parent_json = client.get_issue(new_parent_key, fields=["id"])
+            parent_id = parent_json.get("id")
+            if not parent_id:
+                raise RuntimeError("Could not resolve parent id from key.")
+            client.update_issue_fields(issue_key, {"parent": {"id": parent_id}})
+            st.write(f"Parent of issue {issue_key} updated to {new_parent_key} (via id {parent_id}).")
+            return
+        except Exception as e_id:
+            st.error(
+                "Unable to update parent. "
+                "This can also happen if the issue type cannot have a parent in your scheme "
+                "(e.g., trying to parent a standard issue under another standard issue)."
+            )
+            # surface both errors for debugging
+            st.exception(e_key)
+            st.exception(e_id)
 
 # Function to store jira project key in session state
-def save_jira_project_key(projektkey):
-    st.session_state['jira_project_key'] = projektkey
+def save_jira_project_key(project_key: str) -> None:
+    st.session_state["jira_project_key"] = project_key
 
 # Function to store jira project type in session state ( ROLLOUT, POC, PILOT)
 def save_jira_project_type(projecttype): 
@@ -79,51 +209,25 @@ def get_blue_print_filepath(sessionStateProjectType):
     
     return filepath
 
-# Function to get all keys of company-managed projects in Jira
-def get_project_keys(jira_url, username, password):
-    # Connect to the JIRA server
-    jira = JIRA(jira_url, basic_auth=(username, password))
-    
-    # Retrieve all projects visible to the user
-    projects = jira.projects()
-    
-    # Extract and return the project keys
-    excluded_keys = {'BXIMH','DFM','SE','ROP','OKR', 'FIPR', 'REQMAN', 'MBZ', 'T3S', 'SKK', 'PMO', 'TESTC', 'DUR', 'PS', 'PE', 'TESTB', 'KATE', 'MDG', 'TESTA', 'UGI', 'TESTD', 'TOH', 'MON','DBFM'}
-    company_managed_project_keys = [project.key for project in projects if project.projectTypeKey == 'business' and project.key not in excluded_keys]
-    select_options = [""]
-    select_options.extend(company_managed_project_keys)
-    return select_options
 
-# Function returns a list of JIRA ISSUES ON a JWM Board of type= Account
-def get_jira_issue_type_account_key(jira_url, username, password):
-    jira =  JIRA(jira_url, basic_auth=(username, password))
-    project_key = get_jira_project_key()
-    query = f'project="{project_key}" AND issuetype="Account"'
-    parent_issue_keys = jira.search_issues(query, maxResults=10)
-    parent_keys= [project.key for project in parent_issue_keys]
-    select_options = ["No_Parent"]
-    select_options.extend(parent_keys)
-    return select_options
 
-# Function returns a list of JIRA ISSUES ON a JWM Board of type= Project
-def get_jira_issue_type_project_key(jira_url, username, password):
-    jira =  JIRA(jira_url, basic_auth=(username, password))
-    project_key = get_jira_project_key()
-    query = f'project="{project_key}" AND issuetype="Project"'
-    project_issue_keys = jira.search_issues(query, maxResults=10)
-    project_keys= [project.key for project in project_issue_keys]
-    select_options = [" "]
-    select_options.extend(project_keys)
-    return select_options
+def get_jira_issue_type_account_key(base_url: str, email: str, token: str, issue_type_name: str = "Account", limit: int = 100) -> List[str]:
+    """
+    Return issue keys for the 'Account' issue type within the CURRENT target project
+    (read from st.session_state['jira_project_key']), using /rest/api/3/search/jql.
+    """
+    client = JiraV3(base_url, email, token)
 
-# Function returns a list of JIRA Project Templates from the Template Board
-def get_jira_issue_type_project_key_with_displayname(jira,project_key):
-    # the jira board key of the template board
-    #project_key = JIRA_TEMPLATE_BOARD_KEY
-    query = f'project="{project_key}" AND issuetype="Project"'
-    project_issue_keys = jira.search_issues(query, maxResults=10)
-    project_keys= [{'key': issue.key, 'summary': issue.fields.summary}for issue in project_issue_keys]
-    return project_keys
+    project_key = st.session_state.get("jira_project_key")
+    if not project_key:
+        st.error("Target project key is not set. Please select a target board first.")
+        return []
+
+    jql = f'project = "{project_key}" AND issuetype = "{issue_type_name}" ORDER BY created DESC'
+    data = client.search_jql(jql, fields=["summary"], max_results=limit)
+    issues = data.get("issues", []) or []
+    return [i["key"] for i in issues if i.get("key")]
+
 
 def display_issue_summaries(issue_list):
     # Extract summaries for display in the selectbox
@@ -163,32 +267,81 @@ def get_children_issues(jira, issue_key):
         return children_issues
     return
 
-# updates the parent issue type project of one or more epics 
-def update_parent_issue_type_project(jira, current_project_issue_key, new_project_issue_key):
+def update_parent_issue_type_project(
+    client: JiraV3,
+    current_project_issue_key: str,
+    new_project_issue_key: str,
+) -> None:
     """
-    Update the parent of all issues currently having `current_project_issue_key`
-    as their parent, so that they will point to `new_project_issue_key` instead.
-    (For team-managed/next-gen projects)
+    Re-parent all issues that currently have `current_project_issue_key` as their parent,
+    so they point to `new_project_issue_key` instead. Jira Cloud REST v3.
     """
-    jql = f'parent = {current_project_issue_key}'
-    try:
-        children_issues = jira.search_issues(jql)
-    except Exception as e:
-        st.write(f"Failed to search issues with JQL '{jql}'")
+    if not (current_project_issue_key and new_project_issue_key):
+        st.error("update_parent_issue_type_project: both current and new project issue keys are required.")
         return
 
-    for child_issue in children_issues:
-        child_issue.update(fields={'parent': {'key': new_project_issue_key}})
-    return
-
-
-def delete_newly_created_project(jira,issue_key):
+    # Bounded JQL (v3): use quotes around keys
+    jql = f'parent = "{current_project_issue_key}" ORDER BY created ASC'
     try:
-        issue = jira.issue(issue_key)
-        issue.delete(deleteSubtasks=True)
+        # Use the built-in pager to get all children
+        children: List[Dict] = client.search_jql_all(jql, fields=["key"])
     except Exception as e:
-        st.warning(f"Could not delete newly created issue type project: {e}")
-    return
+        st.error(f"Failed to search children with JQL '{jql}': {e}")
+        return
+
+    if not children:
+        st.info(f"No children found under parent {current_project_issue_key}.")
+        return
+
+    # Try updating by parent key; if Jira complains, fall back to parent id
+    parent_id = None
+    try:
+        client.update_issue_fields(children[0]["key"], {"parent": {"key": new_project_issue_key}})
+        by_key_supported = True
+    except Exception:
+        by_key_supported = False
+        try:
+            p = client.get_issue(new_project_issue_key, fields=["id"])
+            parent_id = p.get("id")
+        except Exception as e:
+            st.error(f"Cannot resolve new parent id for {new_project_issue_key}: {e}")
+            return
+
+    updated = 0
+    for c in children:
+        child_key = c.get("key")
+        if not child_key:
+            continue
+        try:
+            if by_key_supported:
+                client.update_issue_fields(child_key, {"parent": {"key": new_project_issue_key}})
+            else:
+                client.update_issue_fields(child_key, {"parent": {"id": parent_id}})
+            updated += 1
+        except Exception as e:
+            st.warning(f"Failed to re-parent {child_key}: {e}")
+
+    st.success(f"Re-parented {updated} issue(s) to {new_project_issue_key}.")
+
+def delete_newly_created_project(client: JiraV3, issue_key: str) -> None:
+    """
+    DELETE /rest/api/3/issue/{issueKey}?deleteSubtasks=true
+    Removes the newly created project-issue (and its subtasks).
+    """
+    if not issue_key:
+        st.warning("delete_newly_created_project: issue_key is required.")
+        return
+
+    url = f"{client.base_url}/rest/api/3/issue/{issue_key}"
+    try:
+        r = requests.delete(url, headers=client._auth_header, params={"deleteSubtasks": "true"}, timeout=client.timeout)
+        if r.status_code in (200, 204):
+            st.info(f"Issue {issue_key} deleted.")
+        else:
+            st.warning(f"Could not delete {issue_key}: {r.status_code} {r.text}")
+    except Exception as e:
+        st.warning(f"Could not delete newly created issue type project {issue_key}: {e}")
+
 
 # get all child issues of a jira issue
 def get_children_issues_ticket_template(jira, issue_key):
@@ -251,63 +404,102 @@ def get_children_issues_for_timeline(jira, issue_key):
     return
 
 
-def create_report_dataframe(jira,issuekey):
+def _option_value(val: Any) -> Optional[str]:
     """
-    Fetches all child issues for a given Jira issue key and returns a DataFrame.
-    
-    Args:
-    - jira: The Jira client object
-    - issuekey: The key of the Jira issue to get children for
-    
-    Returns:
-    - df (DataFrame): A DataFrame containing all the children issues.
+    Normalize Jira option-like values to a plain string.
+    Handles:
+      - dicts with {"value": "..."}
+      - python-jira style objects with .value
+      - lists of either (joined by ", ")
+      - plain strings / None
     """
-    # Get issues from Jira using issuekey
-    jira_issues = get_children_issues_for_report(jira, issuekey)
+    if val is None:
+        return None
+    if isinstance(val, list):
+        parts = []
+        for v in val:
+            if isinstance(v, dict) and "value" in v:
+                parts.append(str(v["value"]))
+            elif hasattr(v, "value"):
+                parts.append(str(v.value))
+            else:
+                parts.append(str(v))
+        return ", ".join(parts) if parts else None
+    if isinstance(val, dict) and "value" in val:
+        return str(val["value"])
+    if hasattr(val, "value"):
+        return str(val.value)
+    return str(val)
+
+
+def create_report_dataframe(client: JiraV3, issuekey: str) -> pd.DataFrame:
+    """
+    Fetch all child issues for a given parent issue (issuekey) via Jira Cloud REST v3,
+    and return a DataFrame with the fields used by the report.
+
+    Columns: Id, Name, Due Date, Start Date, Status, Owner, Ext.Owner, Issue Type
+    """
+    # Collect children keys using the v3 helper
+    jira_issues: List[str] = get_children_issues_for_report(client, issuekey)
 
     if not jira_issues:
         st.warning(f'The selected project: {issuekey} has no children issues. Choose another project.')
-        return pd.DataFrame()  # Return an empty DataFrame
+        return pd.DataFrame(columns=["Id", "Name", "Due Date", "Start Date", "Status", "Owner", "Ext.Owner", "Issue Type"])
 
-    # Initialize an empty list to store the results
-    issue_data = []
+    issue_data: List[Dict[str, Any]] = []
 
-    # Iterate over the issue keys and fetch details
+    # Fields we need in one call
+    wanted_fields = [
+        "summary",
+        "issuetype",
+        "duedate",
+        "customfield_10015",   # Start Date
+        "status",
+        "assignee",
+        "customfield_10127",   # Ext.Owner (adjust if different in your site)
+    ]
+
     for key in jira_issues:
         try:
-            issue = jira.issue(key)
-            # Fetch the required fields
-            name = issue.fields.summary
-            issuetype = issue.fields.issuetype.name
-            duedate = issue.fields.duedate
-            start_date = issue.fields.customfield_10015
-            status = issue.fields.status.name
-            owner = getattr(issue.fields.assignee, 'displayName', None)
-            ext_owner = issue.fields.customfield_10127
+            issue = client.get_issue(key, fields=wanted_fields)
+            f = issue.get("fields", {}) or {}
 
-            # Add the data to the list
-            issue_data.append({
-                'Id': key,
-                'Name': name,
-                'Due Date': duedate,
-                'Start Date': start_date,
-                'Status': status,
-                'Owner': owner,
-                'Ext.Owner': ext_owner,
-                'Issue Type': issuetype
-            })
+            name = f.get("summary")
+            issuetype = (f.get("issuetype") or {}).get("name")
+            duedate = f.get("duedate")
+            start_date = f.get("customfield_10015")
+            status = (f.get("status") or {}).get("name")
+            assignee = f.get("assignee") or {}
+            owner = assignee.get("displayName")
+            ext_owner = _option_value(f.get("customfield_10127"))
 
+            issue_data.append(
+                {
+                    "Id": key,
+                    "Name": name,
+                    "Due Date": duedate,
+                    "Start Date": start_date,
+                    "Status": status,
+                    "Owner": owner,
+                    "Ext.Owner": ext_owner,
+                    "Issue Type": issuetype,
+                }
+            )
         except Exception as e:
-            print(f"Error fetching data for issue {key}: {e}")
+            st.warning(f"Error fetching data for issue {key}: {e}")
 
-    # Convert to DataFrame
-    df = pd.DataFrame(issue_data)
+    # Build DataFrame
+    df = pd.DataFrame(issue_data, columns=["Id", "Name", "Due Date", "Start Date", "Status", "Owner", "Ext.Owner", "Issue Type"])
 
-    # Convert 'Due Date' to datetime and then to date
-    df['Due Date'] = pd.to_datetime(df['Due Date'], errors='coerce').dt.date
+    # Normalize date columns (keep date only)
+    if not df.empty:
+        if "Due Date" in df.columns:
+            df["Due Date"] = pd.to_datetime(df["Due Date"], errors="coerce").dt.date
+        if "Start Date" in df.columns:
+            df["Start Date"] = pd.to_datetime(df["Start Date"], errors="coerce").dt.date
 
-    # Store the DataFrame in session state for later use
-    st.session_state['df'] = df
+    # Cache in session (if you rely on it elsewhere)
+    st.session_state["df"] = df
 
     return df
 
@@ -358,79 +550,114 @@ def filter_dataframe(df, issue_type=None, statuses=None, days=None, owner_list=N
     return filtered_df
 
 
-def get_users_from_jira_project(jira, project_key):
-    
-    try:
-        # Use search_assignable_users_for_projects to fetch users
-        users = jira.search_assignable_users_for_projects('', project_key)
-        
-        # Extract display names from the user objects
-        user_names = [user.displayName for user in users]
-        select_options = ['None']
-        select_options.extend(user_names)
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        user_names = []
-    
-    return select_options
+def get_users_from_jira_project(client: JiraV3, project_key: str, max_results: int = 1000):
+    """
+    Return list of assignable users (accountId + displayName).
+    """
+    import requests
+    url = f"{client.base_url}/rest/api/3/user/assignable/search"
+    params = {"project": project_key, "maxResults": max_results}
+    r = requests.get(url, headers=client._auth_header, params=params, timeout=client.timeout)
+    r.raise_for_status()
+    users = r.json() or []
+    return [
+        {
+            "accountId": u.get("accountId"),
+            "displayName": u.get("displayName"),
+            "emailAddress": u.get("emailAddress", ""),
+        }
+        for u in users
+        if u.get("accountId")
+    ]
 
 
 
 ### fast fetching of all children issues of a given jira parent issue
-def get_children_issues_for_report(jira, issue_key):
-    # List to store children issues
-    children_issues = []
+def get_children_issues_for_report(client: JiraV3, issue_key: str) -> List[str]:
+    """
+    Fast fetching of all children issues for a given parent issue (Cloud v3).
+    - Direct children: JQL parent = "<issue_key>"
+    - If a child is an Epic, fetch its children: parent = "<epic_key>"
+    - For standard issues (Task/Story/Bug/etc.), fetch subtasks: parent = "<issue_key>"
+    Returns a flat list of keys (unique, order preserved).
+    """
+    if not issue_key:
+        return []
 
-    # Fetch all issues linked directly as children (epics) of the parent issue
-    jql = f'"parent" = {issue_key}'
-    linked_issues = jira.search_issues(jql, maxResults=1000)
-    
-    if not linked_issues:
+    collected: "OrderedDict[str, None]" = OrderedDict()
+
+    def _add_key(k: str):
+        if k and k not in collected:
+            collected[k] = None
+
+    # 1) Direct children of the given parent
+    jql_direct = f'parent = "{issue_key}" ORDER BY created ASC'
+    direct_children: List[Dict] = client.search_jql_all(
+        jql_direct,
+        fields=["key", "issuetype", "subtasks"]
+    )
+
+    for child in direct_children:
+        ckey = child.get("key")
+        _add_key(ckey)
+
+        itype = (child.get("fields", {}).get("issuetype") or {}).get("name", "").lower()
+
+        # 2) If the child is an Epic, fetch all of its direct children (Cloud now uses parent=<EPIC>)
+        if itype == "epic":
+            jql_epic_children = f'parent = "{ckey}" ORDER BY created ASC'
+            epic_children = client.search_jql_all(
+                jql_epic_children,
+                fields=["key", "issuetype", "subtasks"]
+            )
+            for ec in epic_children:
+                eckey = ec.get("key")
+                _add_key(eckey)
+
+                # 3) For each epic child (usually Task/Story/Bug), fetch their subtasks
+                jql_subtasks = f'parent = "{eckey}" ORDER BY created ASC'
+                subtasks = client.search_jql_all(jql_subtasks, fields=["key"])
+                for st in subtasks:
+                    _add_key(st.get("key"))
+
+        else:
+            # 4) For non-epic children, pull their subtasks
+            jql_subtasks = f'parent = "{ckey}" ORDER BY created ASC'
+            subtasks = client.search_jql_all(jql_subtasks, fields=["key"])
+            for st in subtasks:
+                _add_key(st.get("key"))
+
+    return list(collected.keys())
+
+def delete_jira_issue(client: JiraV3, parent_issue_key: str) -> None:
+    """
+    Delete a Jira issue and all of its children (Cloud v3).
+    Requires JiraV3.delete_issue(...).
+    """
+    if not parent_issue_key:
         return
-    # Process fetched issues (initially should be epics or direct tasks)
-    for linked_issue in linked_issues:
-        children_issues.append(linked_issue.key)
 
-        # If the issue is an epic, fetch all its tasks
-        if linked_issue.fields.issuetype.name.lower() == 'epic':
-            epic_jql = f'"Epic Link" = {linked_issue.key}'
-            epic_tasks = jira.search_issues(epic_jql, maxResults=1000)
-            
-            # Add tasks and their subtasks
-            for epic_task in epic_tasks:
-                children_issues.append(epic_task.key)
+    try:
+        # 1) collect all children (epic children, tasks, subtasks)
+        children: List[str] = get_children_issues_for_report(client, parent_issue_key) or []
 
-                # Fetch subtasks for each task (if any)
-                if hasattr(epic_task.fields, 'subtasks'):
-                    for subtask in epic_task.fields.subtasks:
-                        children_issues.append(subtask.key)
-        
-        # If the issue is a task, fetch all its subtasks directly
-        elif linked_issue.fields.issuetype.name.lower() == 'task':
-            # Fetch subtasks for each task (if any)
-            if hasattr(linked_issue.fields, 'subtasks'):
-                for subtask in linked_issue.fields.subtasks:
-                    children_issues.append(subtask.key)
+        # 2) delete children first (reverse for safety)
+        for key in reversed(children):
+            try:
+                client.delete_issue(key, delete_subtasks=True)
+                st.write(f"Deleted child issue: {key}")
+            except Exception as e:
+                st.warning(f"Could not delete child issue {key}: {e}")
 
-    return children_issues
+        # 3) delete the parent last
+        try:
+            client.delete_issue(parent_issue_key, delete_subtasks=True)
+            st.write(f"Deleted parent issue: {parent_issue_key}")
+        except Exception as e:
+            st.warning(f"Could not delete parent issue {parent_issue_key}: {e}")
 
-def delete_jira_issue(jira,parent_issue_key):
-    if parent_issue_key:
-        child_issues = get_children_issues(jira,parent_issue_key)
-        if child_issues:
-            for issue_key in child_issues:
-                issue = jira.issue(issue_key)
-                issue.delete(deleteSubtasks=True)
-                st.write(f"Jira Issue: {issue} deleted")
-                st.empty()
-    else: 
-        return
-    issue = jira.issue(parent_issue_key)
-    issue.delete(deleteSubtasks=True)
-    st.write(f"Jira Issue: {issue} deleted")
-    
-    return
+    except Exception as e:
+        st.warning(f"Delete flow failed for {parent_issue_key}: {e}")
 
 def create_jira_issue(summary, issue_type, start_date=None, due_date=None, parent_key=None, description_key=None):
     issue_dict = {
@@ -457,28 +684,46 @@ def create_jira_issue(summary, issue_type, start_date=None, due_date=None, paren
 
     return issue_dict
 
-def create_jira_issue_ticket_template(board_key,summary, issue_type, start_date=None, due_date=None, parent_key=None, description=None):
-    issue_dict = {
-        'project': board_key,
-        'summary': summary,
-        'issuetype': {'name': issue_type},
-        'description': description
+def normalize_date(d: Optional[date]) -> Optional[str]:
+    if not d:
+        return None
+    if isinstance(d, datetime):
+        d = d.date()
+    return d.strftime("%Y-%m-%d")
+
+def create_jira_issue_ticket_template(
+    board_key: str,
+    summary: str,
+    issue_type: str,
+    start_date: Optional[date] = None,
+    due_date: Optional[date] = None,
+    parent_key: Optional[str] = None,
+    description: Optional[str] = None,
+) -> dict:
+    """
+    Build the v3 issue 'fields' payload for creating a ticket.
+    Note: v3 expects 'project' to be an object: {'key': <PROJECT_KEY>}.
+    Description can be a plain string; if you use ADF, pass the ADF dict instead.
+    """
+    fields: dict = {
+        "project": {"key": board_key},       # v3 requires object with 'key'
+        "summary": summary or "",
+        "issuetype": {"name": issue_type},
+        "description": description or "",    # keep as string unless you pass ADF
     }
-    
+
     if parent_key:
-        issue_dict['parent'] = {'key': parent_key}
+        fields["parent"] = {"key": parent_key}
 
-    if start_date:
-        start_date_normalized = normalize_date(start_date)
-        if start_date_normalized:
-            issue_dict['customfield_10015'] = start_date_normalized
+    start_date_normalized = normalize_date(start_date)
+    if start_date_normalized:
+        fields["customfield_10015"] = start_date_normalized
 
-    if due_date:
-        due_date_normalized = normalize_date(due_date)
-        if due_date_normalized:
-            issue_dict['duedate'] = due_date_normalized
+    due_date_normalized = normalize_date(due_date)
+    if due_date_normalized:
+        fields["duedate"] = due_date_normalized
 
-    return issue_dict
+    return fields
 
 # Get the Jira Issue Key - ( search by using the summary)
 def get_issue_key(jira, summary):
@@ -1029,21 +1274,29 @@ def generate_jql(project, issue_type, status,parent,owner,days,custom_jql):
 
     return " AND ".join(jql_parts)
 
-# Function returns a list of Jira Projects and theirKeys
-def get_company_managed_projects_df(jira_url, username, password):
-    # Connect to the JIRA server
-    jira = JIRA(jira_url, basic_auth=(username, password))
-    
-    # Retrieve all projects visible to the user
-    projects = jira.projects()
-    
-    # Filter and prepare the data for company-managed projects
-    excluded_keys = EXCLUDED_BOARD_KEYS
-    data = [{'Key': project.key, 'Name': project.name} for project in projects if project.projectTypeKey == 'business' and project.key not in excluded_keys]
+def get_company_managed_projects_df(
+    jira_url: str,
+    username: str,
+    password: str,
+    excluded_keys: Optional[Iterable[str]] = None,
+) -> pd.DataFrame:
+    """
+    Return a DataFrame with columns ['Key','Name'] for all *company-managed* Jira projects
+    visible to the user, excluding EXCLUDED_BOARD_KEYS.
+    Uses Jira Cloud REST v3 /project/search via JiraV3 (no python-jira).
+    """
+    client = JiraV3(jira_url, username, password)
 
-    # Create a DataFrame from the filtered data
-    df = pd.DataFrame(data)
-    return df
+    projects: List[Dict] = client.project_search_all()  # paginated under the hood
+    excluded = set(excluded_keys or EXCLUDED_BOARD_KEYS)
+
+    data = [
+        {"Key": p["key"], "Name": p.get("name", "")}
+        for p in projects
+        if p.get("projectTypeKey") == "business" and p.get("key") and p["key"] not in excluded
+    ]
+
+    return pd.DataFrame(data, columns=["Key", "Name"])
 
 
 # Function to retrieve all issues of a project that are relevant for updating the powerpoint timeline (gantt)
@@ -1111,143 +1364,3 @@ def get_start_date_by_summary(issue_data, summary):
         print(f"Error: {e}")
         return None
 
-
-##################################################################################################
-#################################### THIS PART WILL BE USED FOR THE NEXT RELEASE #################
-#################################### IMPORTANT WHEN WORKING WITH EXCEL AS THE MAIN PM TOOL #######
-##################################################################################################
-
-# This Sections updates EndDates dependent Tasks if an EndDate (Due_date) of an Issue changed (Sub-tasks and Epcis are updated accordingly)
-
-def get_issues_from_jira_to_update(jira):
-    # Query issues from Jira
-    issues = jira.search_issues(f'project={get_jira_project_key()}', maxResults=None)
-    
-    # Extract relevant information for the "IssueOverview" sheet
-    issue_data = []
-    
-    for issue in issues:
-        # Extract information about parent issue if exists
-        parent_summary = issue.fields.parent.fields.summary if hasattr(issue.fields, 'parent') and issue.fields.parent else None
-        
-        # Extract information about issue links
-        issue_links = []
-        for link in issue.fields.issuelinks:
-            if link.type.name == 'blocks':
-                if hasattr(link, 'inwardIssue') and hasattr(link.inwardIssue.fields, 'summary'):
-                    issue_links.append({
-                        'LinkType': link.type.inward,
-                        'LinkedIssueSummary': link.inwardIssue.fields.summary
-                    })
-                elif hasattr(link, 'outwardIssue') and hasattr(link.outwardIssue.fields, 'summary'):
-                    issue_links.append({
-                        'LinkType': link.type.outward,
-                        'LinkedIssueSummary': link.outwardIssue.fields.summary
-                    })
-        
-        if not issue_links:
-            # If there are no blocking relationships, add the issue without duplicates
-            issue_info = {
-                'Summary': issue.fields.summary,
-                'IssueKey': issue.key,
-                'ParentSummary': parent_summary,
-                'IssueType': issue.fields.issuetype.name,
-                'StartDate': issue.fields.customfield_10015,
-                'DueDate': issue.fields.duedate
-            }
-            issue_data.append(issue_info)
-        else:
-            # If there are blocking relationships, add each relationship as a separate row
-            for link in issue_links:
-                issue_info = {
-                    'Summary': issue.fields.summary,
-                    'IssueKey': issue.key,
-                    'ParentSummary': parent_summary,
-                    'IssueType': issue.fields.issuetype.name,
-                    'StartDate': issue.fields.customfield_10015,
-                    'DueDate': issue.fields.duedate,
-                    'LinkType': link['LinkType'],
-                    'LinkedIssueSummary': link['LinkedIssueSummary']
-                }
-                issue_data.append(issue_info)
-
-    return pd.DataFrame(issue_data)
-# LEGACY: Function that gets all issues from a given Jira Project - Currently this is handled by get_issues_from_jira
-
-def get_issues_from_jira_v2(jira):
-    # Query issues from Jira
-    issues = jira.search_issues(f'project={get_jira_project_key()}', maxResults=None)
-    
-    # Extract relevant information for the "IssueOverview" sheet
-    issue_data = []
-    
-    for issue in issues:
-        # Extract information about parent issue if exists
-        parent_summary = issue.fields.parent.fields.summary if hasattr(issue.fields, 'parent') and issue.fields.parent else None
-        
-        # Extract information about issue links
-        issue_links = []
-        for link in issue.fields.issuelinks:
-            if hasattr(link, 'inwardIssue'):
-                issue_links.append({
-                    'LinkType': link.type.inward,
-                    'LinkedIssueKey': link.inwardIssue.key
-                })
-            elif hasattr(link, 'outwardIssue'):
-                issue_links.append({
-                    'LinkType': link.type.outward,
-                    'LinkedIssueKey': link.outwardIssue.key
-
-                })
-        
-        assignee = issue.fields.assignee if issue.fields.assignee else None
-        
-        issue_info = {
-            'IssueKey': issue.key,
-            'ParentSummary': parent_summary,
-            'IssueType': issue.fields.issuetype.name,
-            'StartDate': issue.fields.customfield_10015,
-            'DueDate': issue.fields.duedate,
-            'IssueLinks': issue_links
-        }
-        
-        issue_info.update(issue_links)
-        issue_data.append(issue_info)
-
-    return issue_data
-
-def update_dates_for_blocked_issues(issue_data):
-    for row in issue_data:
-        # Check if the issue has a blocking relationship
-        if row['IssueLinks']:
-            for link in row['IssueLinks']:
-                if link['LinkType'] == 'blocks':
-                    blocking_issue_key = link['LinkedIssueKey']
-                    
-                    
-                    # Find the blocking issue in issue_data - 
-                    # the blocking issue is the issue that is blocked
-
-                    blocking_issue = next((issue for issue in issue_data if issue['IssueKey'] == blocking_issue_key), None)
-                    
-                    # Check if the due_date (end_date) is equal to the start_date of the blocking issue
-                    if row['DueDate'] != blocking_issue['StartDate']:
-                        st.write(row['IssueKey'])
-                        st.write(blocking_issue['StartDate'])
-                        st.write(blocking_issue['DueDate'])
-                        
-                        # Convert date strings to datetime objects
-                        start_date = pd.to_datetime(blocking_issue['StartDate'])
-                        due_date = pd.to_datetime(row['DueDate'])
-                        
-                        # Update the start_date of the blocked issue
-                        blocking_issue['StartDate'] = row['DueDate']
-
-                        # Calculate the delta between start_date and due_date
-                        delta_days = (due_date-start_date).days
-                        # Convert end_date of the to datetime object and add the delta
-                        blocking_issue['DueDate'] = (pd.to_datetime(blocking_issue['DueDate']) + pd.to_timedelta(delta_days, unit='D')).strftime('%Y-%m-%d')
-                        st.write(blocking_issue['StartDate'])
-                        st.write(blocking_issue['DueDate'])
-
-    return issue_data

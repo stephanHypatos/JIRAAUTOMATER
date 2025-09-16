@@ -1,22 +1,13 @@
-## TO do 
-## add external partner account ids 
-##  create documentation on how to use
+# pages/TimeReport.py — single-page hours report + budget check (Jira Cloud REST v3)
 
-# TimeReport.py  –  single-page hours report + budget check
-# =========================================================
 import io
-from typing import Dict, List
+from typing import Dict, List, Iterable
 
 import pandas as pd
 import streamlit as st
-from jira import JIRA
-
-# ────────────────────────────────────────────────────────────────
-# ⚙️  CONFIG
-# ────────────────────────────────────────────────────────────────
-JIRA_STATE_KEY = "jira"
 
 from modules.config import JIRA_URL, ADMINS  # noqa: F401
+from modules.jira_v3 import JiraV3
 from modules.jira_operations import (
     get_children_issues_for_report,
     get_project_keys,
@@ -24,12 +15,16 @@ from modules.jira_operations import (
     display_issue_summaries,
 )
 
+# ────────────────────────────────────────────────────────────────
+# ⚙️  CONFIG
+# ────────────────────────────────────────────────────────────────
+JIRA_STATE_KEY = "jira_client"
 
 BUDGET_FIELD_IDS = [
-    "customfield_10484",   # Hypatos budget (stays static) customfield_10484 called Hypatos Budget in Jira 
-    "customfield_10485",   # Generic “partner budget” field called Partner Budget in Jira 
+    "customfield_10484",   # Hypatos Budget
+    "customfield_10485",   # Partner Budget
 ]
-PARTNER_NAME_FIELD = "customfield_10312"   # drop down field  on the parent issuein Jira called Partner
+PARTNER_NAME_FIELD = "customfield_10312"   # Partner (single-select)
 
 # static fallback for hidden e-mails  (safe if the file is missing/empty)
 try:
@@ -38,19 +33,16 @@ except Exception:
     EXTERNAL_ACCOUNT_GROUPS: Dict[str, str] = {}
 
 # ────────────────────────────────────────────────────────────────
-# 🔑  Jira client
+# 🔑  Jira client (credentials from session)
 # ────────────────────────────────────────────────────────────────
 for key in ("api_username", "api_password", "jira_project_key"):
     st.session_state.setdefault(key, "")
 
-jira = JIRA(
-    server=JIRA_URL,
-    basic_auth=(
-        st.session_state["api_username"],
-        st.session_state["api_password"],
-    ),
-)
-st.session_state[JIRA_STATE_KEY] = jira
+if st.session_state["api_password"]:
+    client = JiraV3(JIRA_URL, st.session_state["api_username"], st.session_state["api_password"])
+    st.session_state[JIRA_STATE_KEY] = client
+else:
+    client = None
 
 # ────────────────────────────────────────────────────────────────
 # 🗃️  Cache decorator
@@ -63,21 +55,25 @@ _cache = (
     else st.experimental_memo
 )
 
-   # ------------------------------------------------------------------
+# ------------------------------------------------------------------
 # helper: extract text from dropdown/str field
 # ------------------------------------------------------------------
 def field_value_as_str(cf_value) -> str:
-        """
-        • If the field is a single-select option, return option.value.
-        • If it’s already a plain string, return it.
-        • Otherwise return '' so .strip() will give ''.
-        """
-        if cf_value is None:
-            return ""
-        # Jira option objects have a 'value' attr (and often 'id', 'self', …)
-        if hasattr(cf_value, "value"):
-            return str(cf_value.value)
-        return str(cf_value)
+    """
+    • If the field is a single-select option, return option.value.
+    • If it’s a Jira JSON dict like {"value": "..."} return that value.
+    • If it’s already a plain string, return it.
+    • Otherwise return '' so .strip() will give ''.
+    """
+    if cf_value is None:
+        return ""
+    # JSON dict case
+    if isinstance(cf_value, dict) and "value" in cf_value:
+        return str(cf_value["value"])
+    # python-jira object style (still safe)
+    if hasattr(cf_value, "value"):
+        return str(cf_value.value)
+    return str(cf_value)
 
 # ────────────────────────────────────────────────────────────────
 # 🔧  domain → group helper
@@ -98,12 +94,18 @@ def domain_to_group(domain: str) -> str:
     }
     return tbl.get(sld, sld.upper())
 
-
 # ────────────────────────────────────────────────────────────────
-# 📥  Work-log fetcher  (with static-mapping fallback)
+# 📥  Work-log fetcher (v3)
 # ────────────────────────────────────────────────────────────────
 @_cache(show_spinner=False)
-def fetch_worklogs(_jira: JIRA, issue_keys: List[str]) -> pd.DataFrame:
+def fetch_worklogs(_client: JiraV3, issue_keys: List[str]) -> pd.DataFrame:
+    """
+    Fetch worklogs for all given issues using REST v3:
+      GET /rest/api/3/issue/{issueKey}/worklog?startAt=0&maxResults=100
+    Also resolves user email (if visible) via GET /rest/api/3/user?accountId=...
+    """
+    import requests
+
     IGNORE_ACCOUNT_IDS = {
         "557058:f58131cb-b67d-43c7-b30d-6b58d40bd077",
     }
@@ -114,81 +116,95 @@ def fetch_worklogs(_jira: JIRA, issue_keys: List[str]) -> pd.DataFrame:
         if acc_id in user_cache:
             return user_cache[acc_id]
         try:
-            u = _jira.user(accountId=acc_id)
-            user_cache[acc_id] = u.raw if hasattr(u, "raw") else {}
+            url = f"{_client.base_url}/rest/api/3/user"
+            resp = requests.get(
+                url,
+                headers=_client._auth_header,
+                params={"accountId": acc_id},
+                timeout=_client.timeout,
+            )
+            if resp.status_code == 200:
+                user_cache[acc_id] = resp.json() or {}
+            else:
+                user_cache[acc_id] = {}
         except Exception:
             user_cache[acc_id] = {}
         return user_cache[acc_id]
 
     rows: List[Dict] = []
 
-    def _append(wlogs, issue_key):
-        for wl in wlogs:
-            au = wl.author
-            if not au or au.accountId in IGNORE_ACCOUNT_IDS:
+    def _append(worklogs: List[Dict], issue_key: str):
+        for wl in worklogs:
+            au = wl.get("author") or {}
+            account_id = au.get("accountId")
+            if not account_id or account_id in IGNORE_ACCOUNT_IDS:
                 continue
 
-            # ── try to discover e-mail ──────────────────────────
-            email = getattr(au, "emailAddress", None) or \
-                    getattr(getattr(au, "raw", {}), "emailAddress", None)
-
+            # discover e-mail if visible
+            email = au.get("emailAddress")
             if not email:
-                email = _user_info(au.accountId).get("emailAddress")
+                email = _user_info(account_id).get("emailAddress")
 
-            # ── resolve group ───────────────────────────────────
+            # resolve group
             if email:
                 domain = email.split("@")[-1]
                 group = domain_to_group(domain)
             else:
-                group = EXTERNAL_ACCOUNT_GROUPS.get(au.accountId, "UNKNOWN")
-
-                #st.write(f'WL Author ID: {au.accountId} and issue: {issue_key}')
+                group = EXTERNAL_ACCOUNT_GROUPS.get(account_id, "UNKNOWN")
                 email = "unknown"
+
+            started = wl.get("started")
+            ts = pd.NaT
+            if started:
+                ts = (
+                    pd.to_datetime(started, utc=True)
+                    .normalize()
+                    .tz_localize(None)
+                )
+
+            seconds = wl.get("timeSpentSeconds") or 0
 
             rows.append(
                 {
                     "issue_key": issue_key,
-                    "author_id": au.accountId,
-                    "author": au.displayName,
+                    "author_id": account_id,
+                    "author": au.get("displayName", account_id),
                     "email": email,
                     "group": group,
-                    "date": (
-                        pd.to_datetime(wl.started, utc=True)
-                        .normalize()
-                        .tz_localize(None)
-                    ),
-                    "hours": wl.timeSpentSeconds / 3600,
+                    "date": ts,
+                    "hours": seconds / 3600,
                 }
             )
 
+    # loop issues & paginate worklogs
     for key in issue_keys:
-        if hasattr(_jira, "issue_worklogs"):
-            start = 0
-            while True:
-                try:
-                    wls = _jira.issue_worklogs(key, startAt=start, maxResults=100)
-                except Exception as e:
-                    st.warning(f"Work-logs for {key} failed: {e}")
-                    break
-                if not wls:
-                    break
-                _append(wls, key)
-                if len(wls) < 100:
-                    break
-                start += len(wls)
-        else:
+        start = 0
+        while True:
+            url = f"{_client.base_url}/rest/api/3/issue/{key}/worklog"
+            params = {"startAt": start, "maxResults": 100}
             try:
-                _append(_jira.worklogs(key), key)
+                r = requests.get(url, headers=_client._auth_header, params=params, timeout=_client.timeout)
+                r.raise_for_status()
+                data = r.json() or {}
             except Exception as e:
                 st.warning(f"Work-logs for {key} failed: {e}")
+                break
+
+            wls = data.get("worklogs", []) or []
+            if not wls:
+                break
+
+            _append(wls, key)
+            start += len(wls)
+            if len(wls) < 100:
+                break
 
     return pd.DataFrame(rows)
 
-
 # ────────────────────────────────────────────────────────────────
-# 🚀  Page logic  (unchanged below, just shortened comments)
+# 🚀  Page logic
 # ────────────────────────────────────────────────────────────────
-def app(jira: JIRA) -> None:
+def app(_client: JiraV3) -> None:
     st.header("⏱️ Time Tracking Report")
 
     boards = get_project_keys(
@@ -196,73 +212,77 @@ def app(jira: JIRA) -> None:
         st.session_state["api_username"],
         st.session_state["api_password"],
     )
-    
-    with st.expander('Documentation'):
-     st.markdown(
-        """ 
-        ### Purpose  
-        This report shows **all time that has been logged** on every issue underneath a chosen *Project* parent issue, split by **group** (EY / HYPATOS / …) and by **author**.  
-        It also tells you whether the work is **within the hour-budget** that was planned for the project.
 
-        ### Jira fields that MUST be filled on the parent “Project” issue  
-        | Field on the Project issue | Jira custom-field id | Why it matters |
-        | -------------------------- | ------------------- | -------------- |
-        | **Partner** (dropdown)     | `customfield_10312` | Tells the app *which* external partner (EY / PwC / KPMG …) the “Partner Budget” belongs to. |
-        | **Hypatos Budget**         | `customfield_10484` | Planned hours for internal Hypatos work. |
-        | **Partner Budget**         | `customfield_10485` | Planned hours for the partner selected above. |
-
-        If any of these are empty, the budget check cannot run for that project.
-
-        ### How to run the report  
-        1. **Log in** with your Jira API credentials (top left of the app).  
-        2. In *Time Tracking Report*  
-           * pick the **Jira board** that contains your Project issue;  
-           * select the **Project** issue itself.  
-        3. The page will automatically  
-           * fetch every child issue,  
-           * download all work-logs,  
-           * detect each author’s group,  
-           * show totals and a green/red budget indicator.  
-        4. Use the **sidebar** to filter by group, author or date, and switch between grouping modes.  
-        5. Click **“Download filtered XLSX”** to export whichever slice of data you’re viewing.
-
-        ### Missing or mis-categorised users?  
-        If a user’s e-mail is hidden by Jira, add their **account ID** and desired group to  
-        `modules/external_groups.EXTERNAL_ACCOUNT_GROUPS`, then refresh the page.
-
+    with st.expander("Documentation"):
+        st.markdown(
         """
-    )
-     
+        This page gives you a **single-page view** of all time logged under a Jira "Project" issue  
+        and checks whether you are within the **planned budget** for that project.
+
+        **Step-by-step guide**
+
+        1. **Authenticate** – Make sure you are logged in with your Jira e-mail + API token (see sidebar or Authenticate page).
+        2. **Pick a Jira board** – Select the board that contains the *Project* issue you want to analyse.
+        3. **Select the parent "Project" issue** – This is the issue that has children (Epics, Tasks) representing your delivery scope.
+        4. The app will:
+           * fetch all children, sub-tasks and epic tasks;
+           * download every worklog entry;
+           * group logged time by user group (e.g. EY, Hypatos, …);
+           * compare with the budget fields on the Project issue.
+        5. Use the **filters** in the sidebar to focus on a specific date range, user group, or author.
+        6. Export the filtered data as an **Excel file** using the download button.
+
+        **Required Jira fields on the parent issue**
+
+        | Field name          | Customfield ID | Purpose |
+        | ------------------ | -------------- | ------- |
+        | **Partner**        | `customfield_10312` | Links Partner Budget to the right partner |
+        | **Hypatos Budget** | `customfield_10484` | Planned internal hours |
+        | **Partner Budget** | `customfield_10485` | Planned partner hours |
+
+        If any of these are missing, the **budget check** will be skipped.
+
+        **Tip:**  
+        If some users show up as `UNKNOWN`, add their `accountId → group` mapping  
+        to `modules/external_groups.EXTERNAL_ACCOUNT_GROUPS` and reload the page.
+        """
+        )
+
     board_key = st.selectbox("Select Jira Board Key:", boards, index=0)
     if not board_key:
         st.stop()
 
-    issue_types = get_jira_issue_type_project_key_with_displayname(jira, board_key)
+    issue_types = get_jira_issue_type_project_key_with_displayname(client, board_key)
     parent_key = display_issue_summaries(issue_types)
     if not parent_key:
         st.stop()
 
     with st.spinner("Fetching child issues…"):
-        issue_keys = get_children_issues_for_report(jira, parent_key)
+        issue_keys = get_children_issues_for_report(client, parent_key)
     if not issue_keys:
         st.warning("No children under that parent.")
         st.stop()
 
     with st.spinner("Gathering work-logs…"):
-        df = fetch_worklogs(jira, issue_keys)
+        df = fetch_worklogs(client, issue_keys)
     if df.empty:
         st.warning("No work-logs found.")
         st.stop()
 
     # ── sidebar filters ────────────────────────────────────────
     st.sidebar.header("🔎 Filters & Grouping")
-    author_opts = sorted(df["author"].unique())
+    author_opts = sorted(df["author"].dropna().unique())
     sel_authors = st.sidebar.multiselect("Authors", author_opts, default=author_opts)
 
-    group_opts = sorted(df["group"].unique())
+    group_opts = sorted(df["group"].dropna().unique())
     sel_groups = st.sidebar.multiselect("Groups", group_opts, default=group_opts)
 
-    min_d, max_d = df["date"].min(), df["date"].max()
+    # Avoid errors if date is NaT
+    if df["date"].notna().any():
+        min_d, max_d = df["date"].min(), df["date"].max()
+    else:
+        min_d = max_d = pd.Timestamp.today().normalize()
+
     raw_start, raw_end = st.sidebar.date_input(
         "Date range",
         value=(min_d.date(), max_d.date()),
@@ -304,34 +324,32 @@ def app(jira: JIRA) -> None:
     st.subheader(caption)
     st.dataframe(grouped, use_container_width=True)
 
-
-   # ── budget check ──────────────────────────────────────────────
+    # ── budget check ──────────────────────────────────────────────
     st.subheader("📊 Budget status")
 
     budgets: Dict[str, int] = {}
 
     try:
-        all_fields = ",".join(BUDGET_FIELD_IDS + [PARTNER_NAME_FIELD])
-        parent = jira.issue(parent_key, fields=all_fields)
+        all_fields = BUDGET_FIELD_IDS + [PARTNER_NAME_FIELD]
+        parent = client.get_issue(parent_key, fields=all_fields)
 
         # 1) fixed HYPATOS budget
-        hypatos_raw = getattr(parent.fields, "customfield_10484", None)
+        hypatos_raw = parent.get("fields", {}).get("customfield_10484")
         if hypatos_raw not in (None, ""):
             budgets["HYPATOS"] = int(float(hypatos_raw))
 
         # 2) dynamic partner budget (dropdown)
-        partner_obj = getattr(parent.fields, PARTNER_NAME_FIELD, None)
+        partner_obj = parent.get("fields", {}).get(PARTNER_NAME_FIELD)
         partner_name = field_value_as_str(partner_obj).strip().upper()
-        
 
         if partner_name:
-            partner_budget_raw = getattr(parent.fields, "customfield_10485", None)
+            partner_budget_raw = parent.get("fields", {}).get("customfield_10485")
             if partner_budget_raw not in (None, ""):
                 budgets[partner_name] = int(float(partner_budget_raw))
 
     except Exception as exc:
         st.warning(f"Could not read budgets from parent issue: {exc}")
-    
+
     if not budgets:
         st.info("No budget fields on this parent issue.")
     else:
@@ -343,13 +361,12 @@ def app(jira: JIRA) -> None:
             limit = budgets.get(grp)
             if limit is None:
                 st.info(f"{grp}: no budget set → {spend} h")
-                continue
-            diff = limit - spend
-            if diff >= 0:
-                st.success(f"{grp}: within budget ({spend}/{limit} h, {diff} left)")
             else:
-                st.error(f"{grp}: **{abs(diff)} h over** ({spend}/{limit} h)")
-
+                diff = limit - spend
+                if diff >= 0:
+                    st.success(f"{grp}: within budget ({spend}/{limit} h, {diff} left)")
+                else:
+                    st.error(f"{grp}: **{abs(diff)} h over** ({spend}/{limit} h)")
 
     # ── raw & export ───────────────────────────────────────────
     with st.expander("Show raw work-logs"):
@@ -370,7 +387,7 @@ def app(jira: JIRA) -> None:
 # ────────────────────────────────────────────────────────────────
 # 🔄  Run the page
 # ────────────────────────────────────────────────────────────────
-if st.session_state['api_password'] == '':
+if not client:
     st.warning("Please log in first.")
-else:    
-    app(st.session_state[JIRA_STATE_KEY])
+else:
+    app(client)
