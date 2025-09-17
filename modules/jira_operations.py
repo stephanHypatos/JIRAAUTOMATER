@@ -229,19 +229,49 @@ def get_jira_issue_type_account_key(base_url: str, email: str, token: str, issue
     return [i["key"] for i in issues if i.get("key")]
 
 
-def display_issue_summaries(issue_list):
-    # Extract summaries for display in the selectbox
-    issue_summaries = [issue['summary'] for issue in issue_list]
-    
-    # Display the selectbox with summaries
-    selected_summary = st.selectbox("Select Project:", issue_summaries)
+def display_issue_summaries(issue_list: List[Dict]) -> Optional[str]:
+    """
+    Render a selectbox of issues and return the selected issue KEY.
+    Accepts a list of dicts like {"key": "ABC-123", "summary": "Some title"}.
+    Handles empty lists, missing fields, and duplicate summaries.
+    """
+    if not issue_list:
+        st.warning("No 'Project' issues found for this board.")
+        return None
 
-    # Find the issue with the selected summary
-    selected_issue = next(issue for issue in issue_list if issue['summary'] == selected_summary)
-    
-    # Pass the key of the selected issue to another function
-    
-    return selected_issue['key']
+    # Normalize and guard missing fields
+    cleaned = [
+        {
+            "key": item.get("key") or "",
+            "summary": (item.get("summary") or "").strip() or "(no summary)",
+        }
+        for item in issue_list
+        if item and isinstance(item, dict)
+    ]
+
+    # Build stable choice objects so we don’t rely on summary equality
+    choices = [
+        {
+            "key": it["key"],
+            "label": f'{it["key"]} · {it["summary"]}',
+        }
+        for it in cleaned
+        if it["key"]  # skip entries without a key
+    ]
+
+    if not choices:
+        st.warning("No selectable issues available.")
+        return None
+
+    # Default to first item
+    selected_obj = st.selectbox(
+        "Select source Project issue:",
+        choices,
+        index=0,
+        format_func=lambda o: o["label"],
+    )
+
+    return selected_obj["key"] if selected_obj else None
 
 
 # get all child issues of a jira issue

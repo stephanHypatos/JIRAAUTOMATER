@@ -81,6 +81,8 @@ def main():
     #    This function should internally use /project/search and (optionally) /search/jql via the v3 client.
     jira_template_projects = get_jira_issue_type_project_key_with_displayname(client, template_key_prefix)
     source_issue_key = display_issue_summaries(jira_template_projects)
+    if not source_issue_key:
+        st.stop()  # or st.warning("Pick a source issue"); return
 
     # 2) Compute the scheduling delta (based on source tree dates and chosen start)
     if project_start_date and source_issue_key:
