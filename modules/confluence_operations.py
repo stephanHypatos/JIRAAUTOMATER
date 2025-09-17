@@ -120,7 +120,6 @@ def copy_child_pages(confluence,source_page_id, target_space_key, target_parent_
                 new_page = confluence.create_page(
                     space=target_space_key,
                     title=new_page_title,
-                    subtype="live",
                     body=page_body,
                     parent_id=target_parent_id
                 )
