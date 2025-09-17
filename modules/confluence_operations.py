@@ -49,6 +49,7 @@ def add_row_to_confluence_table(confluence, page_id, table_index, row_data):
     update_response = confluence.update_page(
         page_id=page_id,
         title=page_content["title"],  # Keep the same title
+        subtype="live",
         body=updated_body,
         representation="storage"
     )
