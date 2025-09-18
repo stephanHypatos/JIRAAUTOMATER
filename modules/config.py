@@ -17,6 +17,7 @@ TIMELINE_POWER_POINT_SLIDE_POC = 'timeline_v2_POC.pptx'
 # Jira connection settings
 ADMINS = ['olga.milcent@hypatos.ai','stephan.kuche@hypatos.ai','jorge.costa@hypatos.ai','hugo.oliveira@hypatos.ai','stephankuche@gmail.com','alex.menuet@hypatos.ai']
 JIRA_URL = 'https://hypatos.atlassian.net/'
+JIRA_URL_CONFLUENCE = "https://hypatos.atlassian.net/wiki"
 JIRA_ACCOUNT_ISSUE_TYPE = 'Account'
 JIRA_PROJECT_ISSUE_TYPE = 'Project'
 JIRA_EPIC_ISSUE_TYPE = 'Epic'
