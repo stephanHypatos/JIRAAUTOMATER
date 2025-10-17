@@ -50,16 +50,7 @@ def main():
 
     
     else:
-        if st.button("Test Confluence API"):
-        try:
-            api = _init_api()
-            keys = get_existing_space_keys(api)
-            st.success(f"OK. Found {len(keys)} spaces (e.g., {keys[:5]})")
-        except Exception as e:
-            st.error(f"Confluence connectivity failed: {e}")
-
-        # Initialize native API client (replaces atlassian.Confluence)
-        api = _init_api()
+        
         
         try:
             jira_role_ids = [JIRA_EXTERNAL_USER_ROLE_ID]
@@ -73,9 +64,17 @@ def main():
             lead_user = st.selectbox("Select Account Lead", ['stephan.kuche','jorge.costa','elena.kuhn','olga.milcent','alex.menuet','yavuz.guney','michael.misterka','ekaterina.mironova'])
             project_key = st.text_input("Enter Board Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
             
-            api = _init_api()
-            existing_keys = get_existing_space_keys(api)
+            
+            try:
+                api = _init_api()
+                existing_keys = get_existing_space_keys(api)
+                st.success(f"OK. Found {len(existing_keys)} spaces (e.g., {existing_keys[:5]})")
+            except Exception as e:
+                st.error(f"Confluence connectivity failed: {e}")
 
+            # Initialize native API client (replaces atlassian.Confluence)
+            api = _init_api()
+                
 
             # Check if the space key is valid
             if project_key and len(project_key) == 3 and project_key.isalpha() and project_key not in existing_keys:
