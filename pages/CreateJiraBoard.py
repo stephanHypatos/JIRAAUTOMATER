@@ -68,7 +68,6 @@ def main():
             try:
                 api = _init_api()
                 existing_keys = get_existing_space_keys(api)
-                st.success(f"OK. Found {len(existing_keys)} spaces (e.g., {existing_keys[:5]})")
             except Exception as e:
                 st.error(f"Confluence connectivity failed: {e}")
 
