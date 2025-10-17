@@ -3,10 +3,13 @@ from atlassian import Confluence
 import json
 import streamlit as st
 from jira import JIRA
-from modules.config import JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID,LEAD_USER_MAPPING,TEMPLATE_MAPPING,ASSIGNABLE_USER_GROUP,ADMINS,JIRA_URL,JIRA_EXTERNAL_USER_ROLE_ID
-from modules.confluence_operations import get_existing_space_keys
+from modules.config import JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID,LEAD_USER_MAPPING,TEMPLATE_MAPPING,ASSIGNABLE_USER_GROUP,ADMINS,JIRA_URL,JIRA_EXTERNAL_USER_ROLE_ID,JIRA_URL_CONFLUENCE
 from modules.jira_operations import create_jira_issue,save_jira_project_key
 from modules.jira_board_operations import check_project_name_exists,assign_project_workflow_scheme,assign_issue_type_scheme,assign_issue_type_screen_scheme,assign_users_to_role_of_jira_board,create_jira_board,get_assignable_users,get_all_groups,assign_group_to_role,get_all_role_ids,assign_permission_scheme
+from modules.confluence_native import (
+    ConfluenceAPI,
+    get_existing_space_keys
+)
 
 if 'api_username' not in st.session_state:
         st.session_state['api_username'] = ''
@@ -23,6 +26,18 @@ if 'selected_users' not in st.session_state:
 if 'selected_user_groups' not in st.session_state:
     st.session_state['selected_user_groups'] = []
 
+def _init_api() -> ConfluenceAPI:
+    """
+    Initialize our native Confluence client.
+    On Atlassian Cloud: username=email, password=API token.
+    On Server/DC: username and password are your normal credentials.
+    """
+    return ConfluenceAPI(
+        base_url=JIRA_URL_CONFLUENCE,
+        email=st.session_state["api_username"],
+        api_token=st.session_state["api_password"],
+    )
+        
 def main():
 
     st.set_page_config(page_title="Create Jira Board", page_icon="📋")
@@ -46,7 +61,8 @@ def main():
             lead_user = st.selectbox("Select Account Lead", ['stephan.kuche','jorge.costa','elena.kuhn','olga.milcent','alex.menuet','yavuz.guney','michael.misterka','ekaterina.mironova'])
             project_key = st.text_input("Enter Board Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
             
-            existing_keys = get_existing_space_keys(confluence)
+            api = _init_api()
+            existing_keys = get_existing_space_keys(api)
 
 
             # Check if the space key is valid
