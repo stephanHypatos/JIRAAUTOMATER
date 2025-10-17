@@ -48,7 +48,19 @@ def main():
     elif st.session_state['api_username'] not in ADMINS:
         st.warning(f"❌ Sorry, you dont have access to this page. Ask an admin (J.C or S.K.)")
 
+    
     else:
+        if st.button("Test Confluence API"):
+        try:
+            api = _init_api()
+            keys = get_existing_space_keys(api)
+            st.success(f"OK. Found {len(keys)} spaces (e.g., {keys[:5]})")
+        except Exception as e:
+            st.error(f"Confluence connectivity failed: {e}")
+
+        # Initialize native API client (replaces atlassian.Confluence)
+        api = _init_api()
+        
         try:
             jira_role_ids = [JIRA_EXTERNAL_USER_ROLE_ID]
             confluence = Confluence(
