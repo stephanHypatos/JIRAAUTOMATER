@@ -219,7 +219,7 @@ def assign_users_to_role_of_jira_board(projectIdOrKey, user_list, jira_roles,use
     return
 
 
-def create_jira_board(key, name, project_type, project_template,lead_account_id):
+def create_jira_board_v(key, name, project_type, project_template,lead_account_id):
     url = f"{JIRA_API_URL}/project"
     payload = json.dumps({
         
@@ -247,6 +247,68 @@ def create_jira_board(key, name, project_type, project_template,lead_account_id)
     else:
         st.error(f"Failed to create Jira Board: {response.status_code} - {response.text}")
     return {'id':project_id,'key':project_name}
+
+import requests
+import streamlit as st
+
+def create_jira_board(key, name, project_type, project_template, lead_account_id):
+    url = f"{JIRA_API_URL}/project"  
+
+    payload = {
+        "key": key,
+        "name": name,
+        "projectTypeKey": project_type,
+        "projectTemplateKey": project_template,
+        "leadAccountId": lead_account_id,
+    }
+
+    # Make sure headers are correct
+    req_headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        **(headers or {}),
+    }
+
+    # IMPORTANT: don't allow a conflicting Authorization header
+    if "Authorization" in req_headers:
+        st.warning("headers contains 'Authorization'. This can conflict with requests auth=. Removing it for debug.")
+        req_headers.pop("Authorization", None)
+
+    project_id = None
+    project_key = None
+
+    try:
+        resp = requests.post(url, json=payload, headers=req_headers, auth=auth, timeout=30)
+
+        # --- DEBUG LOGGING ---
+        st.write("Jira create-project URL:", url)
+        st.write("Status:", resp.status_code)
+        st.write("Response (first 2000 chars):", resp.text[:2000])
+
+        # show request headers (sanitized)
+        sent_headers = dict(resp.request.headers)
+        if "Authorization" in sent_headers:
+            sent_headers["Authorization"] = "****"
+        st.write("Sent headers:", sent_headers)
+
+        # ----------------------
+
+        if resp.status_code == 201:
+            data = resp.json()
+            project_id = data.get("id")
+            project_key = data.get("key")
+
+            project_url = f'https://hypatos.atlassian.net/jira/core/projects/{project_name}/board'
+            st.success(f"Project {project_key} created (id: {project_id}).")
+            st.write("Board link (may depend on project type):", project_url)
+        else:
+            st.error(f"Failed to create project: {resp.status_code} - {resp.text}")
+
+        return {"id": project_id, "key": project_key}
+
+    except requests.RequestException as e:
+        st.error(f"Request failed: {e}")
+        return {"id": None, "key": None}
 
 # Function to get assignable users from Jira API
 def get_assignable_users(project_keys):
