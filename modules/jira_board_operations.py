@@ -275,7 +275,7 @@ def create_jira_board(key, name, project_type, project_template, lead_account_id
         req_headers.pop("Authorization", None)
 
     project_id = None
-    project_key = None
+    project_name = None
 
     try:
         resp = requests.post(url, json=payload, headers=req_headers, auth=auth, timeout=30)
@@ -296,15 +296,16 @@ def create_jira_board(key, name, project_type, project_template, lead_account_id
         if resp.status_code == 201:
             data = resp.json()
             project_id = data.get("id")
-            project_key = data.get("key")
+            project_name = data.get("key")
+            project_url = = data.get("url")
 
             project_url = f'https://hypatos.atlassian.net/jira/core/projects/{project_name}/board'
-            st.success(f"Project {project_key} created (id: {project_id}).")
-            st.write("Board link (may depend on project type):", project_url)
+            st.success(f"Jira Board {project_name} created (id: {project_id}).")
+            st.write("Access the Board here:", project_url)
         else:
             st.error(f"Failed to create project: {resp.status_code} - {resp.text}")
 
-        return {"id": project_id, "key": project_key}
+        return {"id": project_id, "key": project_name}
 
     except requests.RequestException as e:
         st.error(f"Request failed: {e}")
