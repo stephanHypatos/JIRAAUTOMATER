@@ -224,9 +224,14 @@ def step_fetch_existing_space_keys() -> List[str]:
     return keys
 
 
-def step_check_project_name_available(project_name: str) -> None:
-    """Check if project name is available (raises ValueError if exists)"""
-    check_project_name_exists(project_name)
+def step_check_project_name_available(project_name: str) -> bool:
+    """
+    Check if project name is available
+    
+    Returns:
+        True if name already exists, False if available
+    """
+    return check_project_name_exists(project_name)
 
 
 def step_create_project(inputs: BoardCreateInputs) -> Dict[str, str]:
@@ -424,16 +429,6 @@ def main():
     if name_err and project_name_raw:
         st.error(name_err)
 
-    # Check project name exists (server-side)
-    if project_name_raw and not name_err:
-        try:
-            step_check_project_name_available(inputs.project_name)
-            st.info(f"ℹ️ Project name looks available: {inputs.project_name}")
-        except ValueError as e:
-            st.error(str(e))
-        except JiraAPIError as e:
-            st.error(f"Error checking project name: {str(e)}")
-
     st.divider()
 
     # ---- Create button with hard-stop flow ----
@@ -464,6 +459,19 @@ def main():
                 f"❌ Key '{normalized_key}' is not available (Confluence space key exists)."
             )
             log_event("WARN", "Key conflict with Confluence", key=normalized_key)
+            st.stop()
+        
+        # Check if project name already exists (RIGHT BEFORE CREATION)
+        st.write("🔍 Validating project name availability...")
+        try:
+            name_exists = step_check_project_name_available(inputs.project_name)
+            if name_exists:
+                st.error(f"❌ Project name '{inputs.project_name}' already exists. Please choose a different name.")
+                log_event("WARN", "Project name already exists", name=inputs.project_name)
+                st.stop()
+            add_step_result("Check project name availability", True, {"name": inputs.project_name})
+        except JiraAPIError as e:
+            fail_step("Check project name availability", e)
             st.stop()
 
         # Create project
