@@ -299,7 +299,7 @@ def create_jira_board(key, name, project_type, project_template, lead_account_id
             st.write("Access the Board here:", project_url)
         else:
             st.error(f"Failed to create project: {resp.status_code} - {resp.text}")
-        
+                     
         return {'id': project_id, 'key': project_name}
 
     except requests.RequestException as e:
