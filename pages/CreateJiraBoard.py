@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional
 
 import streamlit as st
 from jira import JIRA
-from atlassian import Confluence
 
 from modules.config import (
     JIRA_DEV_ROLE_ID,
@@ -31,6 +30,9 @@ from modules.jira_board_operations import (
     get_assignable_users,
     get_all_groups,
     assign_permission_scheme,
+    JiraAuthenticationError,
+    JiraProjectCreationError,
+    JiraAPIError,
 )
 from modules.confluence_native import ConfluenceAPI, get_existing_space_keys
 
@@ -42,12 +44,11 @@ from modules.confluence_native import ConfluenceAPI, get_existing_space_keys
 DEFAULT_SESSION_STATE: Dict[str, Any] = {
     "api_username": "",
     "api_password": "",
-    "jira_project_key": "",  # legacy / kept if other pages read it
+    "jira_project_key": "",
     "temp_jira_board_key": "",
     "temp_jira_board_id": "",
     "selected_users": [],
     "selected_user_groups": [],
-    # debug / transparency
     "debug_logs": [],
     "last_run_steps": [],
     "last_error": None,
@@ -63,6 +64,7 @@ for k, v in DEFAULT_SESSION_STATE.items():
 # -----------------------------
 
 def _redact(value: Any, key: str) -> Any:
+    """Redact sensitive information from logs"""
     if any(s in key.lower() for s in ["password", "token", "secret", "auth"]):
         return "***REDACTED***"
     return value
@@ -82,18 +84,21 @@ def log_event(level: str, message: str, **context: Any) -> None:
 
 
 def reset_run_artifacts() -> None:
+    """Reset tracking for current run"""
     st.session_state["last_run_steps"] = []
     st.session_state["last_error"] = None
     st.session_state["last_success"] = None
 
 
 def add_step_result(step: str, ok: bool, details: Dict[str, Any]) -> None:
+    """Record result of a workflow step"""
     st.session_state["last_run_steps"].append(
         {"step": step, "ok": ok, "details": details}
     )
 
 
 def fail_step(step: str, exc: Exception) -> None:
+    """Handle and log step failure"""
     tb = traceback.format_exc()
     details = {"error": str(exc), "traceback": tb}
     log_event("ERROR", f"Step failed: {step}", error=str(exc))
@@ -106,6 +111,7 @@ def fail_step(step: str, exc: Exception) -> None:
 
 
 def debug_panel() -> None:
+    """Display debug information in expandable panel"""
     with st.expander("🪵 Debug / Transparency (expand)", expanded=False):
         safe_state = {}
         for k, v in st.session_state.items():
@@ -143,8 +149,8 @@ def init_confluence_native() -> ConfluenceAPI:
 @dataclass
 class BoardCreateInputs:
     lead_user: str
-    project_key: str           # 3 letters
-    project_name_raw: str      # customer name
+    project_key: str
+    project_name_raw: str
     project_type: str = "business"
 
     @property
@@ -161,14 +167,27 @@ class BoardCreateInputs:
 # -----------------------------
 
 def user_is_logged_in() -> bool:
-    return bool(st.session_state.get("api_username")) and bool(st.session_state.get("api_password"))
+    """Check if user has credentials in session"""
+    return bool(st.session_state.get("api_username")) and bool(
+        st.session_state.get("api_password")
+    )
 
 
 def user_is_admin() -> bool:
+    """Check if current user is in admin list"""
     return st.session_state.get("api_username") in ADMINS
 
 
 def validate_project_key_format(key: str) -> Optional[str]:
+    """
+    Validate project key format
+    
+    Args:
+        key: Project key to validate
+        
+    Returns:
+        Error message if invalid, None if valid
+    """
     k = key.strip()
     if not k:
         return "Project key is required."
@@ -180,6 +199,15 @@ def validate_project_key_format(key: str) -> Optional[str]:
 
 
 def validate_project_name_raw(name: str) -> Optional[str]:
+    """
+    Validate project name
+    
+    Args:
+        name: Project name to validate
+        
+    Returns:
+        Error message if invalid, None if valid
+    """
     if not name or not name.strip():
         return "Client name is required."
     return None
@@ -190,27 +218,45 @@ def validate_project_name_raw(name: str) -> Optional[str]:
 # -----------------------------
 
 def step_fetch_existing_space_keys() -> List[str]:
+    """Fetch existing Confluence space keys"""
     api = init_confluence_native()
     keys = get_existing_space_keys(api)
     return keys
 
 
 def step_check_project_name_available(project_name: str) -> None:
-    # your helper raises ValueError if exists
+    """Check if project name is available (raises ValueError if exists)"""
     check_project_name_exists(project_name)
 
 
-def step_create_project(inputs: BoardCreateInputs) -> Dict[str, Any]:
+def step_create_project(inputs: BoardCreateInputs) -> Dict[str, str]:
+    """
+    Create Jira project
+    
+    Args:
+        inputs: Board creation parameters
+        
+    Returns:
+        Dictionary with 'key' and 'id' of created project
+        
+    Raises:
+        JiraAuthenticationError: If authentication fails
+        JiraProjectCreationError: If project creation fails
+    """
     project_type = inputs.project_type
     template_key = TEMPLATE_MAPPING[project_type]
     lead_account_id = LEAD_USER_MAPPING[inputs.lead_user]
 
-    st.write({
-    "api_username_present": bool(st.session_state.get("api_username")),
-    "api_password_present": bool(st.session_state.get("api_password")),
-    "api_username_preview": (st.session_state.get("api_username") or "")[:3] + "...",
-    })
-    
+    # Debug: show credentials are present (without exposing them)
+    st.write(
+        {
+            "api_username_present": bool(st.session_state.get("api_username")),
+            "api_password_present": bool(st.session_state.get("api_password")),
+            "api_username_preview": (st.session_state.get("api_username") or "")[:3]
+            + "...",
+        }
+    )
+
     created = create_jira_board(
         key=inputs.normalized_key,
         name=inputs.project_name,
@@ -218,11 +264,13 @@ def step_create_project(inputs: BoardCreateInputs) -> Dict[str, Any]:
         project_template=template_key,
         lead_account_id=lead_account_id,
     )
-    # Expect: dict with 'key' and 'id'
+    
+    # Now returns simple dict with 'key' and 'id'
     return created
 
 
 def step_assign_schemes(project_id: str) -> None:
+    """Assign all required schemes to project"""
     assign_project_workflow_scheme(project_id)
     assign_issue_type_screen_scheme(project_id)
     assign_issue_type_scheme(project_id)
@@ -235,6 +283,7 @@ def step_assign_users_and_groups(
     jira_role_ids: List[int],
     selected_user_groups: List[str],
 ) -> None:
+    """Assign users and groups to project roles"""
     assign_users_to_role_of_jira_board(
         project_id,
         selected_user_account_ids,
@@ -244,8 +293,24 @@ def step_assign_users_and_groups(
 
 
 def step_create_account_issue(project_key: str, project_name_raw: str) -> str:
+    """
+    Create initial 'Account' issue in project
+    
+    Args:
+        project_key: The project key
+        project_name_raw: Raw project name (customer name)
+        
+    Returns:
+        Created issue key
+    """
     issue_dict = create_jira_issue(project_name_raw, "Account")
-    jira = JIRA(JIRA_URL, basic_auth=(st.session_state["api_username"], st.session_state["api_password"]))
+    jira = JIRA(
+        JIRA_URL,
+        basic_auth=(
+            st.session_state["api_username"],
+            st.session_state["api_password"],
+        ),
+    )
     res = jira.create_issue(fields=issue_dict)
     return str(res)
 
@@ -255,17 +320,22 @@ def step_create_account_issue(project_key: str, project_name_raw: str) -> str:
 # -----------------------------
 
 def show_access_gates() -> bool:
-    """Returns True if user may proceed, otherwise shows warning and returns False."""
+    """
+    Returns True if user may proceed, otherwise shows warning and returns False.
+    """
     if not user_is_logged_in():
-        st.warning("Please log in first.")
+        st.warning("⚠️ Please log in first via the Authenticate page.")
         return False
     if not user_is_admin():
-        st.warning("❌ Sorry, you dont have access to this page. Ask an admin (J.C or S.K.)")
+        st.warning(
+            "❌ Sorry, you don't have access to this page. Ask an admin (J.C or S.K.)"
+        )
         return False
     return True
 
 
 def reset_temp_project_state() -> None:
+    """Clear temporary project state from session"""
     st.session_state["temp_jira_board_key"] = ""
     st.session_state["temp_jira_board_id"] = ""
     st.session_state["selected_users"] = []
@@ -284,7 +354,7 @@ def main():
         debug_panel()
         return
 
-    # Roles you want to use for external users
+    # Roles for external users
     jira_role_ids = [JIRA_EXTERNAL_USER_ROLE_ID]
 
     # ---- Inputs (Board creation) ----
@@ -292,7 +362,16 @@ def main():
 
     lead_user = st.selectbox(
         "Select Account Lead",
-        ["stephan.kuche", "jorge.costa", "elena.kuhn", "olga.milcent", "alex.menuet", "yavuz.guney", "michael.misterka", "ekaterina.mironova"],
+        [
+            "stephan.kuche",
+            "jorge.costa",
+            "elena.kuhn",
+            "olga.milcent",
+            "alex.menuet",
+            "yavuz.guney",
+            "michael.misterka",
+            "ekaterina.mironova",
+        ],
         index=0,
     )
     project_key = st.text_input(
@@ -323,16 +402,22 @@ def main():
         try:
             log_event("INFO", "Fetching existing Confluence space keys")
             existing_keys = step_fetch_existing_space_keys()
-            add_step_result("Fetch Confluence space keys", True, {"count": len(existing_keys)})
+            add_step_result(
+                "Fetch Confluence space keys", True, {"count": len(existing_keys)}
+            )
         except Exception as e:
             fail_step("Fetch Confluence space keys", e)
             st.stop()
 
         normalized_key = inputs.normalized_key
         if normalized_key not in existing_keys:
-            st.success(f"The key '{normalized_key}' is valid and available.", icon="✅")
+            st.success(
+                f"✅ The key '{normalized_key}' is valid and available.", icon="✅"
+            )
         else:
-            st.error(f"The key '{normalized_key}' already exists in Confluence (space key conflict).")
+            st.error(
+                f"❌ The key '{normalized_key}' already exists in Confluence (space key conflict)."
+            )
 
     if key_err and project_key:
         st.error(key_err)
@@ -343,9 +428,11 @@ def main():
     if project_name_raw and not name_err:
         try:
             step_check_project_name_available(inputs.project_name)
-            st.info(f"Project name looks available: {inputs.project_name}")
+            st.info(f"ℹ️ Project name looks available: {inputs.project_name}")
         except ValueError as e:
             st.error(str(e))
+        except JiraAPIError as e:
+            st.error(f"Error checking project name: {str(e)}")
 
     st.divider()
 
@@ -354,7 +441,12 @@ def main():
 
     if create_clicked:
         reset_run_artifacts()
-        log_event("INFO", "Create Jira Board clicked", key=inputs.normalized_key, name=inputs.project_name)
+        log_event(
+            "INFO",
+            "Create Jira Board clicked",
+            key=inputs.normalized_key,
+            name=inputs.project_name,
+        )
 
         # Re-run validations with hard stops
         if key_err:
@@ -368,7 +460,9 @@ def main():
 
         normalized_key = inputs.normalized_key
         if existing_keys and normalized_key in existing_keys:
-            st.error(f"Key '{normalized_key}' is not available (Confluence space key exists).")
+            st.error(
+                f"❌ Key '{normalized_key}' is not available (Confluence space key exists)."
+            )
             log_event("WARN", "Key conflict with Confluence", key=normalized_key)
             st.stop()
 
@@ -376,22 +470,40 @@ def main():
         try:
             with st.status("Creating Jira project…", expanded=True) as status:
                 created = step_create_project(inputs)
-                add_step_result("Create Jira project", True, {"created": {"key": created.get("key"), "id": created.get("id")}})
-                status.update(label="✅ Jira project created", state="complete", expanded=False)
+                add_step_result(
+                    "Create Jira project",
+                    True,
+                    {"created": {"key": created.get("key"), "id": created.get("id")}},
+                )
+                status.update(
+                    label="✅ Jira project created", state="complete", expanded=False
+                )
 
+        except JiraAuthenticationError as e:
+            fail_step("Authentication", e)
+            st.error(
+                "💡 **Tip**: Go to the Authenticate page and re-enter your credentials."
+            )
+            st.stop()
+        except JiraProjectCreationError as e:
+            fail_step("Create Jira project", e)
+            st.stop()
         except Exception as e:
             fail_step("Create Jira project", e)
             st.stop()
 
-        # Persist in session state (single source of truth)
+        # Extract key and id from response
         created_key = created.get("key")
         created_id = created.get("id")
+
         if not created_key or not created_id:
-            st.error("Jira returned an unexpected response (missing 'key' or 'id').")
-            log_event("ERROR", "Unexpected create_jira_board response", response=created)
+            error_msg = "Jira returned an unexpected response (missing 'key' or 'id')."
+            st.error(f"❌ {error_msg}")
+            log_event("ERROR", error_msg, response=created)
             add_step_result("Validate create response", False, {"response": created})
             st.stop()
 
+        # Persist in session state (single source of truth)
         st.session_state["temp_jira_board_key"] = created_key
         st.session_state["temp_jira_board_id"] = created_id
 
@@ -402,20 +514,33 @@ def main():
             fail_step("Save project key", e)
             st.stop()
 
-        st.success(f"Project {inputs.project_name} created! (Key: {created_key})")
+        st.success(
+            f"✅ Project {inputs.project_name} created! (Key: {created_key})"
+        )
 
         # Assign schemes
         try:
             with st.status("Assigning schemes…", expanded=True) as status:
                 step_assign_schemes(created_id)
-                add_step_result("Assign schemes", True, {"project_id": created_id})
-                status.update(label="✅ Schemes assigned", state="complete", expanded=False)
+                add_step_result(
+                    "Assign schemes", True, {"project_id": created_id}
+                )
+                status.update(
+                    label="✅ Schemes assigned", state="complete", expanded=False
+                )
+        except JiraAPIError as e:
+            fail_step("Assign schemes", e)
+            st.stop()
         except Exception as e:
             fail_step("Assign schemes", e)
             st.stop()
 
         st.session_state["last_success"] = {
-            "project": {"key": created_key, "id": created_id, "name": inputs.project_name},
+            "project": {
+                "key": created_key,
+                "id": created_id,
+                "name": inputs.project_name,
+            },
             "inputs": {**asdict(inputs), "project_key": inputs.normalized_key},
         }
 
@@ -431,7 +556,12 @@ def main():
             users = get_assignable_users(ASSIGNABLE_USER_GROUP)
             user_options = {u["displayName"]: u["accountId"] for u in users}
             user_names = list(user_options.keys())
-            add_step_result("Fetch assignable users", True, {"count": len(user_names)})
+            add_step_result(
+                "Fetch assignable users", True, {"count": len(user_names)}
+            )
+        except JiraAPIError as e:
+            fail_step("Fetch assignable users", e)
+            st.stop()
         except Exception as e:
             fail_step("Fetch assignable users", e)
             st.stop()
@@ -439,6 +569,9 @@ def main():
         try:
             user_groups = get_all_groups(group_alias="partner")
             add_step_result("Fetch partner groups", True, {"count": len(user_groups)})
+        except JiraAPIError as e:
+            fail_step("Fetch partner groups", e)
+            st.stop()
         except Exception as e:
             fail_step("Fetch partner groups", e)
             st.stop()
@@ -458,7 +591,12 @@ def main():
 
         if submit_button:
             reset_run_artifacts()
-            log_event("INFO", "User assignment submitted", project_id=project_id, project_key=project_key_created)
+            log_event(
+                "INFO",
+                "User assignment submitted",
+                project_id=project_id,
+                project_key=project_key_created,
+            )
 
             st.session_state["selected_users"] = selected_users
             st.session_state["selected_user_groups"] = selected_user_groups
@@ -467,7 +605,9 @@ def main():
 
             # Step: Assign users/groups to role
             try:
-                with st.status("Assigning users/groups to roles…", expanded=True) as status:
+                with st.status(
+                    "Assigning users/groups to roles…", expanded=True
+                ) as status:
                     step_assign_users_and_groups(
                         project_id=project_id,
                         selected_user_account_ids=selected_user_account_ids,
@@ -484,8 +624,15 @@ def main():
                             "role_ids": jira_role_ids,
                         },
                     )
-                    status.update(label="✅ Users & groups assigned", state="complete", expanded=False)
-                st.success("Users/groups successfully assigned.")
+                    status.update(
+                        label="✅ Users & groups assigned",
+                        state="complete",
+                        expanded=False,
+                    )
+                st.success("✅ Users/groups successfully assigned.")
+            except JiraAPIError as e:
+                fail_step("Assign users/groups to project role", e)
+                st.stop()
             except Exception as e:
                 fail_step("Assign users/groups to project role", e)
                 st.stop()
@@ -493,17 +640,26 @@ def main():
             # Step: Create Account issue
             try:
                 with st.status('Creating "Account" issue…', expanded=True) as status:
-                    issue_key = step_create_account_issue(project_key_created, project_name_raw=st.session_state.get("jira_project_key") or "")
-                    add_step_result('Create "Account" issue', True, {"issue": issue_key})
-                    status.update(label='✅ "Account" issue created', state="complete", expanded=False)
-                st.success(f'New Issue Type "Account" created: {issue_key}')
+                    issue_key = step_create_account_issue(
+                        project_key_created,
+                        project_name_raw=inputs.project_name_raw,
+                    )
+                    add_step_result(
+                        'Create "Account" issue', True, {"issue": issue_key}
+                    )
+                    status.update(
+                        label='✅ "Account" issue created',
+                        state="complete",
+                        expanded=False,
+                    )
+                st.success(f'✅ New Issue Type "Account" created: {issue_key}')
             except Exception as e:
                 fail_step('Create "Account" issue', e)
                 st.stop()
 
             # Final: reset temp state so the flow doesn't repeat accidentally
             reset_temp_project_state()
-            st.info("Flow completed. Temporary project state reset.")
+            st.info("✅ Flow completed. Temporary project state reset.")
 
     debug_panel()
 
