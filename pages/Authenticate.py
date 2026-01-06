@@ -15,13 +15,22 @@ if 'api_password' not in st.session_state:
 if 'jira_project_key' not in st.session_state:
     st.session_state['jira_project_key'] = ''
 
+api_username = st.text_input("UserName ( email address )", value=st.session_state.get('api_username', ''))
+api_password = st.text_input("API Password", type="password", value=st.session_state.get('api_password', ''))
 
-api_username = st.text_input("UserName ( email address )", value=st.session_state['api_username'])
-api_password = st.text_input("API Password", type="password", value=st.session_state['api_password'])
+# old api_username = st.text_input("UserName ( email address )", value=st.session_state['api_username'])
+# old api_password = st.text_input("API Password", type="password", value=st.session_state['api_password'])
 
 # Button to save credentials
 if st.button('Save Session Credentials'):
-    save_credentials(api_username, api_password)
+    st.session_state['api_username'] = (api_username or "").strip()
+    st.session_state['api_password'] = (api_password or "").strip()
+
+    save_credentials(st.session_state['api_username'], st.session_state['api_password'])
+
+    st.success("Credentials saved in this session.")
+    st.rerun()
+
 
 # Button to clear credentials from the session
 if st.button('Clear Credentials'):
