@@ -205,6 +205,12 @@ def step_create_project(inputs: BoardCreateInputs) -> Dict[str, Any]:
     template_key = TEMPLATE_MAPPING[project_type]
     lead_account_id = LEAD_USER_MAPPING[inputs.lead_user]
 
+    st.write({
+    "api_username_present": bool(st.session_state.get("api_username")),
+    "api_password_present": bool(st.session_state.get("api_password")),
+    "api_username_preview": (st.session_state.get("api_username") or "")[:3] + "...",
+    })
+    
     created = create_jira_board(
         key=inputs.normalized_key,
         name=inputs.project_name,
