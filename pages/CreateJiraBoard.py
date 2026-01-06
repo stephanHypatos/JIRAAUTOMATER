@@ -111,7 +111,7 @@ def main():
                             lead_account_id=lead_user_mapping[lead_user]
                         )
 
-                        if project_key:
+                        if project_key != None:
                             st.session_state['temp_jira_board_key'] = project_key_created['key']
                             save_jira_project_key(st.session_state['temp_jira_board_key'])
                             st.session_state['temp_jira_board_id'] = project_key_created['id']
