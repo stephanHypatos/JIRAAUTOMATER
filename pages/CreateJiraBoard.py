@@ -1,209 +1,506 @@
-from requests.auth import HTTPBasicAuth
-from atlassian import Confluence
-import json
+from __future__ import annotations
+
+import time
+import traceback
+from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional
+
 import streamlit as st
 from jira import JIRA
-from modules.config import JIRA_DEV_ROLE_ID,JIRA_ADMIN_ROLE_ID,LEAD_USER_MAPPING,TEMPLATE_MAPPING,ASSIGNABLE_USER_GROUP,ADMINS,JIRA_URL,JIRA_EXTERNAL_USER_ROLE_ID,JIRA_URL_CONFLUENCE
-from modules.jira_operations import create_jira_issue,save_jira_project_key
-from modules.jira_board_operations import check_project_name_exists,assign_project_workflow_scheme,assign_issue_type_scheme,assign_issue_type_screen_scheme,assign_users_to_role_of_jira_board,create_jira_board,get_assignable_users,get_all_groups,assign_group_to_role,get_all_role_ids,assign_permission_scheme
-from modules.confluence_native import (
-    ConfluenceAPI,
-    get_existing_space_keys
+from atlassian import Confluence
+
+from modules.config import (
+    JIRA_DEV_ROLE_ID,
+    JIRA_ADMIN_ROLE_ID,
+    LEAD_USER_MAPPING,
+    TEMPLATE_MAPPING,
+    ASSIGNABLE_USER_GROUP,
+    ADMINS,
+    JIRA_URL,
+    JIRA_EXTERNAL_USER_ROLE_ID,
+    JIRA_URL_CONFLUENCE,
 )
+from modules.jira_operations import create_jira_issue, save_jira_project_key
+from modules.jira_board_operations import (
+    check_project_name_exists,
+    assign_project_workflow_scheme,
+    assign_issue_type_scheme,
+    assign_issue_type_screen_scheme,
+    assign_users_to_role_of_jira_board,
+    create_jira_board,
+    get_assignable_users,
+    get_all_groups,
+    assign_permission_scheme,
+)
+from modules.confluence_native import ConfluenceAPI, get_existing_space_keys
 
-if 'api_username' not in st.session_state:
-        st.session_state['api_username'] = ''
-if 'api_password' not in st.session_state:
-    st.session_state['api_password'] = ''
-if 'jira_project_key' not in st.session_state:
-    st.session_state['jira_project_key'] = ''
-if 'temp_jira_board_key' not in st.session_state:
-    st.session_state['temp_jira_board_key'] = ''
-if 'temp_jira_board_id' not in st.session_state:
-    st.session_state['temp_jira_board_id'] = ''
-if 'selected_users' not in st.session_state:
-    st.session_state['selected_users'] = []
-if 'selected_user_groups' not in st.session_state:
-    st.session_state['selected_user_groups'] = []
 
-def _init_api() -> ConfluenceAPI:
+# -----------------------------
+# Session State Initialization
+# -----------------------------
+
+DEFAULT_SESSION_STATE: Dict[str, Any] = {
+    "api_username": "",
+    "api_password": "",
+    "jira_project_key": "",  # legacy / kept if other pages read it
+    "temp_jira_board_key": "",
+    "temp_jira_board_id": "",
+    "selected_users": [],
+    "selected_user_groups": [],
+    # debug / transparency
+    "debug_logs": [],
+    "last_run_steps": [],
+    "last_error": None,
+    "last_success": None,
+}
+
+for k, v in DEFAULT_SESSION_STATE.items():
+    st.session_state.setdefault(k, v)
+
+
+# -----------------------------
+# Logging / Transparency
+# -----------------------------
+
+def _redact(value: Any, key: str) -> Any:
+    if any(s in key.lower() for s in ["password", "token", "secret", "auth"]):
+        return "***REDACTED***"
+    return value
+
+
+def log_event(level: str, message: str, **context: Any) -> None:
+    """Append a log event to session_state."""
+    safe_context = {k: _redact(v, k) for k, v in context.items()}
+    st.session_state["debug_logs"].append(
+        {
+            "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "level": level.upper(),
+            "message": message,
+            "context": safe_context,
+        }
+    )
+
+
+def reset_run_artifacts() -> None:
+    st.session_state["last_run_steps"] = []
+    st.session_state["last_error"] = None
+    st.session_state["last_success"] = None
+
+
+def add_step_result(step: str, ok: bool, details: Dict[str, Any]) -> None:
+    st.session_state["last_run_steps"].append(
+        {"step": step, "ok": ok, "details": details}
+    )
+
+
+def fail_step(step: str, exc: Exception) -> None:
+    tb = traceback.format_exc()
+    details = {"error": str(exc), "traceback": tb}
+    log_event("ERROR", f"Step failed: {step}", error=str(exc))
+    add_step_result(step, False, details)
+    st.session_state["last_error"] = {"step": step, **details}
+
+    st.error(f"❌ {step} failed: {exc}")
+    with st.expander("Show technical details", expanded=False):
+        st.code(tb)
+
+
+def debug_panel() -> None:
+    with st.expander("🪵 Debug / Transparency (expand)", expanded=False):
+        safe_state = {}
+        for k, v in st.session_state.items():
+            safe_state[k] = _redact(v, k)
+        st.subheader("Session State (redacted)")
+        st.json(safe_state)
+
+        st.subheader("Last Run Steps")
+        st.json(st.session_state.get("last_run_steps", []))
+
+        st.subheader("Logs (last 200)")
+        st.json(st.session_state.get("debug_logs", [])[-200:])
+
+
+# -----------------------------
+# Confluence client init
+# -----------------------------
+
+def init_confluence_native() -> ConfluenceAPI:
     """
-    Initialize our native Confluence client.
-    On Atlassian Cloud: username=email, password=API token.
-    On Server/DC: username and password are your normal credentials.
+    Native Confluence client used for fetching existing space keys.
+    On Atlassian Cloud: email + API token.
     """
     return ConfluenceAPI(
         base_url=JIRA_URL_CONFLUENCE,
         email=st.session_state["api_username"],
         api_token=st.session_state["api_password"],
     )
-        
-def main():
 
+
+# -----------------------------
+# Data contract
+# -----------------------------
+
+@dataclass
+class BoardCreateInputs:
+    lead_user: str
+    project_key: str           # 3 letters
+    project_name_raw: str      # customer name
+    project_type: str = "business"
+
+    @property
+    def project_name(self) -> str:
+        return f"{self.project_name_raw} x Hypatos"
+
+    @property
+    def normalized_key(self) -> str:
+        return self.project_key.strip().upper()
+
+
+# -----------------------------
+# Guards / Validation
+# -----------------------------
+
+def user_is_logged_in() -> bool:
+    return bool(st.session_state.get("api_username")) and bool(st.session_state.get("api_password"))
+
+
+def user_is_admin() -> bool:
+    return st.session_state.get("api_username") in ADMINS
+
+
+def validate_project_key_format(key: str) -> Optional[str]:
+    k = key.strip()
+    if not k:
+        return "Project key is required."
+    if len(k) != 3:
+        return "Project key must be exactly 3 characters."
+    if not k.isalpha():
+        return "Project key must contain letters only (A–Z)."
+    return None
+
+
+def validate_project_name_raw(name: str) -> Optional[str]:
+    if not name or not name.strip():
+        return "Client name is required."
+    return None
+
+
+# -----------------------------
+# Step functions
+# -----------------------------
+
+def step_fetch_existing_space_keys() -> List[str]:
+    api = init_confluence_native()
+    keys = get_existing_space_keys(api)
+    return keys
+
+
+def step_check_project_name_available(project_name: str) -> None:
+    # your helper raises ValueError if exists
+    check_project_name_exists(project_name)
+
+
+def step_create_project(inputs: BoardCreateInputs) -> Dict[str, Any]:
+    project_type = inputs.project_type
+    template_key = TEMPLATE_MAPPING[project_type]
+    lead_account_id = LEAD_USER_MAPPING[inputs.lead_user]
+
+    created = create_jira_board(
+        key=inputs.normalized_key,
+        name=inputs.project_name,
+        project_type=project_type,
+        project_template=template_key,
+        lead_account_id=lead_account_id,
+    )
+    # Expect: dict with 'key' and 'id'
+    return created
+
+
+def step_assign_schemes(project_id: str) -> None:
+    assign_project_workflow_scheme(project_id)
+    assign_issue_type_screen_scheme(project_id)
+    assign_issue_type_scheme(project_id)
+    assign_permission_scheme(project_id)
+
+
+def step_assign_users_and_groups(
+    project_id: str,
+    selected_user_account_ids: List[str],
+    jira_role_ids: List[int],
+    selected_user_groups: List[str],
+) -> None:
+    assign_users_to_role_of_jira_board(
+        project_id,
+        selected_user_account_ids,
+        jira_role_ids,
+        selected_user_groups,
+    )
+
+
+def step_create_account_issue(project_key: str, project_name_raw: str) -> str:
+    issue_dict = create_jira_issue(project_name_raw, "Account")
+    jira = JIRA(JIRA_URL, basic_auth=(st.session_state["api_username"], st.session_state["api_password"]))
+    res = jira.create_issue(fields=issue_dict)
+    return str(res)
+
+
+# -----------------------------
+# UI helpers
+# -----------------------------
+
+def show_access_gates() -> bool:
+    """Returns True if user may proceed, otherwise shows warning and returns False."""
+    if not user_is_logged_in():
+        st.warning("Please log in first.")
+        return False
+    if not user_is_admin():
+        st.warning("❌ Sorry, you dont have access to this page. Ask an admin (J.C or S.K.)")
+        return False
+    return True
+
+
+def reset_temp_project_state() -> None:
+    st.session_state["temp_jira_board_key"] = ""
+    st.session_state["temp_jira_board_id"] = ""
+    st.session_state["selected_users"] = []
+    st.session_state["selected_user_groups"] = []
+
+
+# -----------------------------
+# Main
+# -----------------------------
+
+def main():
     st.set_page_config(page_title="Create Jira Board", page_icon="📋")
     st.title("Create Jira Board")
 
-    if st.session_state['api_password'] == '':
-            st.warning("Please log in first.")
-    elif st.session_state['api_username'] not in ADMINS:
-        st.warning(f"❌ Sorry, you dont have access to this page. Ask an admin (J.C or S.K.)")
+    if not show_access_gates():
+        debug_panel()
+        return
 
-    
-    else:
-        
-        
+    # Roles you want to use for external users
+    jira_role_ids = [JIRA_EXTERNAL_USER_ROLE_ID]
+
+    # ---- Inputs (Board creation) ----
+    st.subheader("1) Create Board (Jira Project)")
+
+    lead_user = st.selectbox(
+        "Select Account Lead",
+        ["stephan.kuche", "jorge.costa", "elena.kuhn", "olga.milcent", "alex.menuet", "yavuz.guney", "michael.misterka", "ekaterina.mironova"],
+        index=0,
+    )
+    project_key = st.text_input(
+        "Enter Board Key",
+        max_chars=3,
+        help="Use an Alpha-3 UPPERCASE key. If the key is already in use, you won't be able to create a new Board.",
+    )
+    project_name_raw = st.text_input(
+        "Enter Client Name",
+        placeholder="Happy Customer",
+        help="Naming Convention: Try not to go for a too long version.",
+    )
+
+    inputs = BoardCreateInputs(
+        lead_user=lead_user,
+        project_key=project_key,
+        project_name_raw=project_name_raw,
+        project_type="business",
+    )
+
+    # ---- Validation preview / key availability ----
+    key_err = validate_project_key_format(inputs.project_key)
+    name_err = validate_project_name_raw(inputs.project_name_raw)
+
+    existing_keys: List[str] = []
+    if not key_err:
+        # Fetch existing Confluence space keys (once) - for key availability check
         try:
-            jira_role_ids = [JIRA_EXTERNAL_USER_ROLE_ID]
-            confluence = Confluence(
-                url=JIRA_URL,
-                username=st.session_state['api_username'],
-                password=st.session_state['api_password']
-            )
-            
-            # Get inputs from the user
-            lead_user = st.selectbox("Select Account Lead", ['stephan.kuche','jorge.costa','elena.kuhn','olga.milcent','alex.menuet','yavuz.guney','michael.misterka','ekaterina.mironova'])
-            project_key = st.text_input("Enter Board Key", max_chars=3,help='Use an Alpha-3 UPPERCASE key. If the key is already in use, you wont be able to create a new Board')
-            
-            
-            try:
-                api = _init_api()
-                existing_keys = get_existing_space_keys(api)
-            except Exception as e:
-                st.error(f"Confluence connectivity failed: {e}")
-
-            # Initialize native API client (replaces atlassian.Confluence)
-            api = _init_api()
-                
-
-            # Check if the space key is valid
-            if project_key and len(project_key) == 3 and project_key.isalpha() and project_key not in existing_keys:
-                st.success(f"The key '{project_key}' is valid and available.",icon="✅")
-            elif project_key:
-                st.error("The key must be alpha-3, and it must not already exist.")
-
-            project_name_raw = st.text_input("Enter Client Name", placeholder='Happy Customer', help='Naming Convention: Try not to go for a too long version.')
-
-
-            # append Hypatos to create the new board name
-            project_name = f"{project_name_raw} x Hypatos"
-
-            if project_name and project_name_raw != '':
-                try:
-                    check_project_name_exists(project_name)
-                except ValueError as e:
-                    st.error(str(e))
-            
-                project_type = "business" #currently not in use: project_type = st.selectbox("Select Project Type", ["business", "software", "service_desk"])
-                lead_user_mapping = LEAD_USER_MAPPING
-
-                # Define default templates for each project type
-                template_mapping = TEMPLATE_MAPPING
-
-                project_key_created = None
-                # Create project button
-                if st.button("Create Jira Board"):
-                    if project_key and project_name:
-                        project_key_created=create_jira_board(
-                            key=project_key.upper(),
-                            name=project_name,
-                            project_type=project_type,
-                            project_template=template_mapping[project_type],
-                            lead_account_id=lead_user_mapping[lead_user]
-                        )
-
-                        if project_key != None:
-                            st.session_state['temp_jira_board_key'] = project_key_created['key']
-                            save_jira_project_key(st.session_state['temp_jira_board_key'])
-                            st.session_state['temp_jira_board_id'] = project_key_created['id']
-                            st.success(f"Project {project_name} created!")  
-
-                            # assign Workflowschemes
-                            assign_project_workflow_scheme(st.session_state['temp_jira_board_id'])
-                            assign_issue_type_screen_scheme(st.session_state['temp_jira_board_id'])
-                            assign_issue_type_scheme(st.session_state['temp_jira_board_id'])
-                            assign_permission_scheme(st.session_state['temp_jira_board_id'])
-                            
-                    else:
-                        st.error("Please fill all the fields.")
-
-                # If project is created, show a form to select users
-                if st.session_state['temp_jira_board_key'] != '' :
-                    
-                    st.subheader("Assign Users to Project")
-
-                    # Create a form for user selection
-                    with st.form("user_selection_form"):
-                        users = get_assignable_users(ASSIGNABLE_USER_GROUP)
-
-                        # Prepare user options for multiselect
-                        user_options = {user['displayName']: user['accountId'] for user in users}
-                        user_names = list(user_options.keys())
-                        
-                        # Initialize session state for selected users if not already
-                        if 'selected_users' not in st.session_state:
-                            st.session_state['selected_users'] = []
-
-                        # Display multiselect widget for user selection inside the form
-                        selected_users = st.multiselect("Select one or more users", user_names, default=st.session_state['selected_users'])
-
-                        # get all partner user groups                        
-                        user_groups = get_all_groups(group_alias="partner")
-                        selected_user_groups = st.multiselect("Select external User Groups", user_groups)
-
-                        # Submit button inside the form
-                        submit_button = st.form_submit_button("Submit Selection")
-
-                        if submit_button:
-                            st.session_state['selected_users'] = selected_users
-                            selected_user_account_ids = [user_options[user] for user in selected_users]
-                            try:
-                                assign_users_to_role_of_jira_board(st.session_state['temp_jira_board_id'],selected_user_account_ids,jira_role_ids,selected_user_groups)
-                                st.write("Selected Users assigned to Board:", selected_user_account_ids)
-                            except Exception as e:
-                                st.warning(f'Error occured while assigne users to Board: {e}')
-                            # Last Step add an issue Type Account to the created Jira Board
-                            try:
-                                issue_dict=create_jira_issue(project_name_raw, 'Account')
-                                jira = JIRA(JIRA_URL, basic_auth=(st.session_state['api_username'], st.session_state['api_password']))
-                                res = jira.create_issue(fields=issue_dict)
-                                st.success(f'New Issue Type "Account" {res} created.')
-                            except Exception as e:
-                                st.warning(f'Error occured while creating Issue Type "Account" on Board: {e}')
-
-                            del st.session_state['temp_jira_board_key']
-                            del st.session_state['jira_project_key']
+            log_event("INFO", "Fetching existing Confluence space keys")
+            existing_keys = step_fetch_existing_space_keys()
+            add_step_result("Fetch Confluence space keys", True, {"count": len(existing_keys)})
         except Exception as e:
-            st.error(f'Unable to connect to Atlassian: {e}. Ask the admin for more details.')
+            fail_step("Fetch Confluence space keys", e)
+            st.stop()
+
+        normalized_key = inputs.normalized_key
+        if normalized_key not in existing_keys:
+            st.success(f"The key '{normalized_key}' is valid and available.", icon="✅")
+        else:
+            st.error(f"The key '{normalized_key}' already exists in Confluence (space key conflict).")
+
+    if key_err and project_key:
+        st.error(key_err)
+    if name_err and project_name_raw:
+        st.error(name_err)
+
+    # Check project name exists (server-side)
+    if project_name_raw and not name_err:
+        try:
+            step_check_project_name_available(inputs.project_name)
+            st.info(f"Project name looks available: {inputs.project_name}")
+        except ValueError as e:
+            st.error(str(e))
+
+    st.divider()
+
+    # ---- Create button with hard-stop flow ----
+    create_clicked = st.button("Create Jira Board", type="primary")
+
+    if create_clicked:
+        reset_run_artifacts()
+        log_event("INFO", "Create Jira Board clicked", key=inputs.normalized_key, name=inputs.project_name)
+
+        # Re-run validations with hard stops
+        if key_err:
+            st.error(key_err)
+            log_event("WARN", "Validation failed", reason=key_err)
+            st.stop()
+        if name_err:
+            st.error(name_err)
+            log_event("WARN", "Validation failed", reason=name_err)
+            st.stop()
+
+        normalized_key = inputs.normalized_key
+        if existing_keys and normalized_key in existing_keys:
+            st.error(f"Key '{normalized_key}' is not available (Confluence space key exists).")
+            log_event("WARN", "Key conflict with Confluence", key=normalized_key)
+            st.stop()
+
+        # Create project
+        try:
+            with st.status("Creating Jira project…", expanded=True) as status:
+                created = step_create_project(inputs)
+                add_step_result("Create Jira project", True, {"created": {"key": created.get("key"), "id": created.get("id")}})
+                status.update(label="✅ Jira project created", state="complete", expanded=False)
+
+        except Exception as e:
+            fail_step("Create Jira project", e)
+            st.stop()
+
+        # Persist in session state (single source of truth)
+        created_key = created.get("key")
+        created_id = created.get("id")
+        if not created_key or not created_id:
+            st.error("Jira returned an unexpected response (missing 'key' or 'id').")
+            log_event("ERROR", "Unexpected create_jira_board response", response=created)
+            add_step_result("Validate create response", False, {"response": created})
+            st.stop()
+
+        st.session_state["temp_jira_board_key"] = created_key
+        st.session_state["temp_jira_board_id"] = created_id
+
+        try:
+            save_jira_project_key(created_key)
+            add_step_result("Save project key", True, {"key": created_key})
+        except Exception as e:
+            fail_step("Save project key", e)
+            st.stop()
+
+        st.success(f"Project {inputs.project_name} created! (Key: {created_key})")
+
+        # Assign schemes
+        try:
+            with st.status("Assigning schemes…", expanded=True) as status:
+                step_assign_schemes(created_id)
+                add_step_result("Assign schemes", True, {"project_id": created_id})
+                status.update(label="✅ Schemes assigned", state="complete", expanded=False)
+        except Exception as e:
+            fail_step("Assign schemes", e)
+            st.stop()
+
+        st.session_state["last_success"] = {
+            "project": {"key": created_key, "id": created_id, "name": inputs.project_name},
+            "inputs": {**asdict(inputs), "project_key": inputs.normalized_key},
+        }
+
+    # ---- User assignment section (only after project creation) ----
+    if st.session_state.get("temp_jira_board_key"):
+        st.subheader("2) Assign Users / Groups to Project")
+
+        project_id = st.session_state["temp_jira_board_id"]
+        project_key_created = st.session_state["temp_jira_board_key"]
+
+        # Fetch users/groups outside the form so errors are visible immediately
+        try:
+            users = get_assignable_users(ASSIGNABLE_USER_GROUP)
+            user_options = {u["displayName"]: u["accountId"] for u in users}
+            user_names = list(user_options.keys())
+            add_step_result("Fetch assignable users", True, {"count": len(user_names)})
+        except Exception as e:
+            fail_step("Fetch assignable users", e)
+            st.stop()
+
+        try:
+            user_groups = get_all_groups(group_alias="partner")
+            add_step_result("Fetch partner groups", True, {"count": len(user_groups)})
+        except Exception as e:
+            fail_step("Fetch partner groups", e)
+            st.stop()
+
+        with st.form("user_selection_form"):
+            selected_users = st.multiselect(
+                "Select one or more users",
+                user_names,
+                default=st.session_state.get("selected_users", []),
+            )
+            selected_user_groups = st.multiselect(
+                "Select external User Groups",
+                user_groups,
+                default=st.session_state.get("selected_user_groups", []),
+            )
+            submit_button = st.form_submit_button("Submit Selection")
+
+        if submit_button:
+            reset_run_artifacts()
+            log_event("INFO", "User assignment submitted", project_id=project_id, project_key=project_key_created)
+
+            st.session_state["selected_users"] = selected_users
+            st.session_state["selected_user_groups"] = selected_user_groups
+
+            selected_user_account_ids = [user_options[name] for name in selected_users]
+
+            # Step: Assign users/groups to role
+            try:
+                with st.status("Assigning users/groups to roles…", expanded=True) as status:
+                    step_assign_users_and_groups(
+                        project_id=project_id,
+                        selected_user_account_ids=selected_user_account_ids,
+                        jira_role_ids=jira_role_ids,
+                        selected_user_groups=selected_user_groups,
+                    )
+                    add_step_result(
+                        "Assign users/groups to project role",
+                        True,
+                        {
+                            "project_id": project_id,
+                            "user_count": len(selected_user_account_ids),
+                            "group_count": len(selected_user_groups),
+                            "role_ids": jira_role_ids,
+                        },
+                    )
+                    status.update(label="✅ Users & groups assigned", state="complete", expanded=False)
+                st.success("Users/groups successfully assigned.")
+            except Exception as e:
+                fail_step("Assign users/groups to project role", e)
+                st.stop()
+
+            # Step: Create Account issue
+            try:
+                with st.status('Creating "Account" issue…', expanded=True) as status:
+                    issue_key = step_create_account_issue(project_key_created, project_name_raw=st.session_state.get("jira_project_key") or "")
+                    add_step_result('Create "Account" issue', True, {"issue": issue_key})
+                    status.update(label='✅ "Account" issue created', state="complete", expanded=False)
+                st.success(f'New Issue Type "Account" created: {issue_key}')
+            except Exception as e:
+                fail_step('Create "Account" issue', e)
+                st.stop()
+
+            # Final: reset temp state so the flow doesn't repeat accidentally
+            reset_temp_project_state()
+            st.info("Flow completed. Temporary project state reset.")
+
+    debug_panel()
+
 
 if __name__ == "__main__":
     main()
-
-        ### DOCU
-        # https://developer.atlassian.com/cloud/jira/platform/rest/v2/api-group-projects/#api-rest-api-2-project-get
-        # "assigneeType": "PROJECT_LEAD",
-        #   "avatarId": 10200,
-        #   "categoryId": 10120,
-        #   "description": "Cloud migration initiative",
-        #   "issueSecurityScheme": 10001,
-        #   "key": "EX",
-        #   "leadAccountId": "5b10a0effa615349cb016cd8",
-        #   "name": "Example",
-        #   "notificationScheme": 10021,
-        #   "permissionScheme": 10011,
-        #   "projectTemplateKey": "com.atlassian.jira-core-project-templates:jira-core-simplified-process-control",
-        #   "projectTypeKey": "business",
-        #   "url": "http://atlassian.com"
-
-
-        ## Role - ID Mapping: 
-
-
-        #      "atlassian-addons-project-access": 10003
-        #     "Service Desk Team":10013
-        #     "Developers": 10071
-        #     "Service Desk Customers": 10012
-        #     "Administrators": 10002
-        #     "Viewers": 10070
-        #     "Sprint Manager": 10076
-        #     "External users": 10224
-
