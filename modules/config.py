@@ -15,7 +15,7 @@ EXCEL_TIMELINE_ELEMENTS_POC = 'timeline_v2_POC.xlsx'
 TIMELINE_POWER_POINT_SLIDE_POC = 'timeline_v2_POC.pptx'
 
 # Jira connection settings
-ADMINS = ['olga.milcent@hypatos.ai','stephan.kuche@hypatos.ai','jorge.costa@hypatos.ai','hugo.oliveira@hypatos.ai','stephankuche@gmail.com','adela.norgall@hypatos.ai']
+ADMINS = ['stephan.kuche@hypatos.ai','jorge.costa@hypatos.ai','hugo.oliveira@hypatos.ai','stephankuche@gmail.com','adela.norgall@hypatos.ai','matt.dixon@hypatos.ai']
 JIRA_URL = 'https://hypatos.atlassian.net/'
 JIRA_URL_CONFLUENCE = "https://hypatos.atlassian.net/wiki"
 JIRA_ACCOUNT_ISSUE_TYPE = 'Account'
@@ -44,6 +44,8 @@ LEAD_USER_MAPPING = {
             'jorge.costa': '621d1acfb7e7c700715583e7',
             'stephan.kuche': "630cd2ab3310c2492b59c51f",
             'yavuz.guney':"712020:37b7fd3e-db24-433f-88d7-e84bb8d27551",
+            'olga.milcent':"712020:fdca536f-f91c-4d77-aebd-bbdd02825291",
+            'andre.borzzatto':"712020:886a6920-6c34-49c2-aa07-af749853588b",
             'ekaterina.mironova':"712020:45df7004-d0c2-4759-a3d6-c5737d5be307"
         }
 
