@@ -41,12 +41,9 @@ DEFAULT_BOARD_GROUPS=["COE","administrators"]
 # user who can be assigned as lead to a jira board
 LEAD_USER_MAPPING = {
             'elena.kuhn':'712020:9de34ad3-f71e-4093-bd04-354b08b4a982',
-            'erik.roa':"712020:21733a1a-064e-49e9-a3b8-29a232a4ebe6",
-            'alex.menuet':"61ae5486744c4d0069633e7f",
             'jorge.costa': '621d1acfb7e7c700715583e7',
             'stephan.kuche': "630cd2ab3310c2492b59c51f",
             'yavuz.guney':"712020:37b7fd3e-db24-433f-88d7-e84bb8d27551",
-            'michael.misterka':"712020:a72d1b25-ec0d-49ed-9313-f02b3cd36b8c",
             'ekaterina.mironova':"712020:45df7004-d0c2-4759-a3d6-c5737d5be307"
         }
 
