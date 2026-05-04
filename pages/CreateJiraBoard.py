@@ -86,7 +86,7 @@ def main():
     lead_user = st.selectbox(
         "Select Account Lead",
         ["stephan.kuche", "jorge.costa", "elena.kuhn", "olga.milcent", 
-         "alex.menuet", "yavuz.guney", "michael.misterka", "ekaterina.mironova"],
+         "alex.menuet", "yavuz.guney", "andre.borzzatto", "ekaterina.mironova"],
     )
     
     project_key = st.text_input("Enter Board Key (3 letters)", max_chars=3).upper()
@@ -98,15 +98,15 @@ def main():
         st.error(key_error)
     
     # Check key availability
-    if project_key and not key_error:
-        try:
-            existing_keys = get_confluence_keys()
-            if project_key in existing_keys:
-                st.error(f"❌ Key '{project_key}' already exists in Confluence")
-            else:
-                st.success(f"✅ Key '{project_key}' is available")
-        except Exception as e:
-            st.error(f"Error checking key: {e}")
+   # if project_key and not key_error:
+    #    try:
+     #       existing_keys = get_confluence_keys()
+      #      if project_key in existing_keys:
+       #         st.error(f"❌ Key '{project_key}' already exists in Confluence")
+        #    else:
+         #       st.success(f"✅ Key '{project_key}' is available")
+        #except Exception as e:
+         #   st.error(f"Error checking key: {e}")
 
     st.divider()
 
@@ -121,14 +121,14 @@ def main():
             st.stop()
 
         # Check key availability one more time
-        try:
-            existing_keys = get_confluence_keys()
-            if project_key in existing_keys:
-                st.error(f"❌ Key '{project_key}' already exists")
-                st.stop()
-        except Exception as e:
-            st.error(f"Error checking key: {e}")
-            st.stop()
+     #   try:
+      #      existing_keys = get_confluence_keys()
+       #     if project_key in existing_keys:
+        #        st.error(f"❌ Key '{project_key}' already exists")
+         #       st.stop()
+        #except Exception as e:
+         #   st.error(f"Error checking key: {e}")
+          #  st.stop()
 
         # Create project
         project_name = f"{project_name_raw.strip()} x Hypatos"
