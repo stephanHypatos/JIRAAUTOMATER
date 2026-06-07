@@ -44,9 +44,9 @@ LEAD_USER_MAPPING = {
             'jorge.costa': '621d1acfb7e7c700715583e7',
             'stephan.kuche': "630cd2ab3310c2492b59c51f",
             'yavuz.guney':"712020:37b7fd3e-db24-433f-88d7-e84bb8d27551",
-            'olga.milcent':"712020:fdca536f-f91c-4d77-aebd-bbdd02825291",
             'andre.borzzatto':"712020:886a6920-6c34-49c2-aa07-af749853588b",
-            'ekaterina.mironova':"712020:45df7004-d0c2-4759-a3d6-c5737d5be307"
+            'ekaterina.mironova':"712020:45df7004-d0c2-4759-a3d6-c5737d5be307",
+            'pelin.isiner@hypatos':"712020:88ea2b8c-6e15-43d6-80a3-b5be01dbb482"
         }
 
 TEMPLATE_MAPPING = {
